@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer-core'
+import puppeteerCore from 'puppeteer-core'
+import puppeteer from 'puppeteer'
 import chromium from '@sparticuz/chromium'
 import { formatDate, formatTimeWithAmPm } from './utils'
 
@@ -666,7 +667,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
     // Vercel serverless environment
     try {
       const executablePath = await chromium.executablePath()
-      browser = await puppeteer.launch({
+      browser = await puppeteerCore.launch({
         args: chromium.args,
         defaultViewport: chromium.defaultViewport,
         executablePath,
@@ -674,8 +675,8 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         ignoreHTTPSErrors: true,
       })
     } catch (error) {
-      console.error('Failed to launch with Chromium, falling back to default:', error)
-      // Fallback to default configuration
+      console.error('Failed to launch with Chromium, falling back to full puppeteer:', error)
+      // Fallback to full puppeteer (includes Chrome)
       browser = await puppeteer.launch({
         args: [
           '--no-sandbox',
