@@ -1,5 +1,4 @@
-import puppeteerCore from 'puppeteer-core'
-import puppeteer from 'puppeteer'
+import puppeteer from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
 import { formatDate, formatTimeWithAmPm } from './utils'
 
@@ -659,41 +658,21 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
   `
 
   // Vercel-compatible Puppeteer configuration with Chromium
-  const isVercel = process.env.VERCEL === '1'
+  const isProduction = process.env.NODE_ENV === 'production'
   
   let browser
   
-  if (isVercel) {
-    // Vercel serverless environment
-    try {
-      const executablePath = await chromium.executablePath()
-      browser = await puppeteerCore.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath,
-        headless: true,
-        ignoreHTTPSErrors: true,
-      })
-    } catch (error) {
-      console.error('Failed to launch with Chromium, falling back to full puppeteer:', error)
-      // Fallback to full puppeteer (includes Chrome)
-      browser = await puppeteer.launch({
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process',
-          '--disable-gpu'
-        ],
-        headless: true,
-        ignoreHTTPSErrors: true,
-      })
-    }
+  if (isProduction) {
+    // Production/Vercel environment - use Chromium
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: true,
+      ignoreHTTPSErrors: true,
+    })
   } else {
-    // Local development
+    // Local development - use system Chrome
     browser = await puppeteer.launch({
       args: [
         '--no-sandbox',
