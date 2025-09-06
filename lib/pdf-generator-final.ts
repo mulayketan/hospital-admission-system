@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer'
+import puppeteer from 'puppeteer-core'
+import chromium from '@sparticuz/chromium'
 import { formatDate, formatTimeWithAmPm } from './utils'
 
 interface PatientWithMarathi {
@@ -656,19 +657,18 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
 </html>
   `
 
-  // Vercel-compatible Puppeteer configuration
+  // Vercel-compatible Puppeteer configuration with Chromium
   const browser = await puppeteer.launch({
-    headless: true,
     args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process',
-      '--disable-gpu'
-    ]
+      ...chromium.args,
+      '--hide-scrollbars',
+      '--disable-web-security',
+      '--disable-features=VizDisplayCompositor',
+    ],
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath(),
+    headless: true,
+    ignoreHTTPSErrors: true,
   })
 
   try {
