@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
+import fs from 'fs'
 import { formatDate, formatTimeWithAmPm } from './utils'
 
 interface PatientWithMarathi {
@@ -657,32 +658,68 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
 </html>
   `
 
-  // Always use @sparticuz/chromium for consistency
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath(),
-    headless: true,
-    ignoreHTTPSErrors: true,
-  })
-
+  // Adaptive launcher for local vs serverless
+  let browser: puppeteer.Browser | null = null
   try {
+    try {
+      // Prefer @sparticuz/chromium path (works on Vercel)
+      browser = await puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: true,
+        ignoreHTTPSErrors: true,
+      })
+    } catch (err: any) {
+      // Local fallback: point puppeteer-core to a real Chrome executable
+      const envPath = process.env.CHROME_EXECUTABLE_PATH
+      let localExecutablePath: string | undefined = envPath && fs.existsSync(envPath) ? envPath : undefined
+
+      if (!localExecutablePath) {
+        if (process.platform === 'darwin') {
+          const macCandidates = [
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+            '/Applications/Chromium.app/Contents/MacOS/Chromium',
+          ]
+          localExecutablePath = macCandidates.find(p => fs.existsSync(p))
+        } else if (process.platform === 'win32') {
+          const winCandidates = [
+            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+            'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+          ]
+          localExecutablePath = winCandidates.find(p => fs.existsSync(p))
+        } else {
+          const linuxCandidates = [
+            '/usr/bin/google-chrome',
+            '/usr/bin/chromium-browser',
+            '/usr/bin/chromium',
+          ]
+          localExecutablePath = linuxCandidates.find(p => fs.existsSync(p))
+        }
+      }
+
+      if (!localExecutablePath) {
+        throw new Error('Local Chrome executable not found. Set CHROME_EXECUTABLE_PATH or install Google Chrome.')
+      }
+
+      browser = await puppeteer.launch({
+        executablePath: localExecutablePath,
+        headless: true,
+      })
+    }
+
     const page = await browser.newPage()
     await page.setContent(html, { waitUntil: 'networkidle0' })
-    
+
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: {
-        top: '8mm',
-        right: '8mm',
-        bottom: '8mm',
-        left: '8mm'
-      }
+      margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
     })
 
     return Buffer.from(pdfBuffer)
   } finally {
-    await browser.close()
+    if (browser) await browser.close()
   }
 }
