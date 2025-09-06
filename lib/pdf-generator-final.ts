@@ -658,12 +658,12 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
   `
 
   // Vercel-compatible Puppeteer configuration with Chromium
-  const isProduction = process.env.NODE_ENV === 'production'
+  const isVercel = !!process.env.VERCEL_ENV
   
   let browser
   
-  if (isProduction) {
-    // Production/Vercel environment - use Chromium
+  if (isVercel) {
+    // Vercel environment - use @sparticuz/chromium
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
