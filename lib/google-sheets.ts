@@ -48,10 +48,22 @@ export const readSheet = async (sheetName: string, range?: string): Promise<any[
   const sheets = initSheetsClient()
   
   try {
-    const response = await sheets.spreadsheets.values.get({
+    console.log(`Reading sheet ${sheetName}${range ? ` with range ${range}` : ''}...`)
+    const startTime = Date.now()
+    
+    // Add timeout wrapper
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Google Sheets API timeout after 25 seconds')), 25000)
+    })
+    
+    const apiPromise = sheets.spreadsheets.values.get({
       spreadsheetId: getSpreadsheetId(),
       range: range ? `${sheetName}!${range}` : sheetName,
     })
+    
+    const response = await Promise.race([apiPromise, timeoutPromise])
+    const duration = Date.now() - startTime
+    console.log(`Sheet ${sheetName} read completed in ${duration}ms`)
     
     return response.data.values || []
   } catch (error) {

@@ -230,11 +230,20 @@ export class PatientModel {
     limit?: number 
   }): Promise<{ patients: Patient[], total: number }> {
     try {
-      const data = await readSheet(SHEET_NAMES.PATIENTS)
+      console.log('PatientModel.findMany called with options:', options)
+      const startTime = Date.now()
+      
+      // For search queries, limit the range to avoid loading too much data
+      const maxRows = options?.search ? 1000 : 500 // Limit rows when searching
+      const range = `A1:Z${maxRows}` // Read only first 500-1000 rows
+      
+      const data = await readSheet(SHEET_NAMES.PATIENTS, range)
       if (data.length <= 1) return { patients: [], total: 0 }
       
       const headers = data[0]
       let patients = data.slice(1).map(row => this.rowToPatient(headers, row))
+      
+      console.log(`Loaded ${patients.length} patients in ${Date.now() - startTime}ms`)
       
       // Apply search filter
       if (options?.search) {
@@ -245,6 +254,7 @@ export class PatientModel {
           patient.phoneNo.includes(searchTerm) ||
           (patient.ipdNo && patient.ipdNo.toLowerCase().includes(searchTerm))
         )
+        console.log(`Filtered to ${patients.length} patients matching "${searchTerm}"`)
       }
       
       const total = patients.length
@@ -254,8 +264,10 @@ export class PatientModel {
         const start = (options.page - 1) * options.limit
         const end = start + options.limit
         patients = patients.slice(start, end)
+        console.log(`Paginated to ${patients.length} patients (page ${options.page})`)
       }
       
+      console.log(`PatientModel.findMany completed in ${Date.now() - startTime}ms`)
       return { patients, total }
     } catch (error) {
       console.error('Error finding patients:', error)
