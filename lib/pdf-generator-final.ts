@@ -658,18 +658,56 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
   `
 
   // Vercel-compatible Puppeteer configuration with Chromium
-  const browser = await puppeteer.launch({
-    args: [
-      ...chromium.args,
-      '--hide-scrollbars',
-      '--disable-web-security',
-      '--disable-features=VizDisplayCompositor',
-    ],
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath(),
-    headless: true,
-    ignoreHTTPSErrors: true,
-  })
+  const isVercel = process.env.VERCEL === '1'
+  
+  let browser
+  
+  if (isVercel) {
+    // Vercel serverless environment
+    try {
+      const executablePath = await chromium.executablePath()
+      browser = await puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath,
+        headless: true,
+        ignoreHTTPSErrors: true,
+      })
+    } catch (error) {
+      console.error('Failed to launch with Chromium, falling back to default:', error)
+      // Fallback to default configuration
+      browser = await puppeteer.launch({
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--disable-gpu'
+        ],
+        headless: true,
+        ignoreHTTPSErrors: true,
+      })
+    }
+  } else {
+    // Local development
+    browser = await puppeteer.launch({
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ],
+      headless: true,
+      ignoreHTTPSErrors: true,
+    })
+  }
 
   try {
     const page = await browser.newPage()
