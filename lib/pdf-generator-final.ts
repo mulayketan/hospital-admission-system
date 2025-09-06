@@ -657,37 +657,14 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
 </html>
   `
 
-  // Vercel-compatible Puppeteer configuration with Chromium
-  const isVercel = !!process.env.VERCEL_ENV
-  
-  let browser
-  
-  if (isVercel) {
-    // Vercel environment - use @sparticuz/chromium
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: true,
-      ignoreHTTPSErrors: true,
-    })
-  } else {
-    // Local development - use system Chrome
-    browser = await puppeteer.launch({
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
-      ],
-      headless: true,
-      ignoreHTTPSErrors: true,
-    })
-  }
+  // Always use @sparticuz/chromium for consistency
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath(),
+    headless: true,
+    ignoreHTTPSErrors: true,
+  })
 
   try {
     const page = await browser.newPage()
