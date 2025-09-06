@@ -13,18 +13,18 @@ A comprehensive web application for managing patient admissions at Zawar Hospita
 - **Secure Authentication**: Protected routes with role-based access control
 
 ### Technical Features
-- **Modern Tech Stack**: Next.js 14, TypeScript, Prisma, PostgreSQL
+- **Modern Tech Stack**: Next.js 14, TypeScript, Google Sheets API
 - **Responsive Design**: Mobile-friendly interface using Tailwind CSS
 - **Real-time Validation**: Form validation with immediate feedback
 - **Professional PDF Output**: Pixel-perfect admission forms matching hospital templates
-- **Comprehensive Testing**: Unit and integration tests for reliability
+- **Cloud Database**: Google Sheets integration for easy data management
 - **Production Ready**: Optimized for Vercel deployment
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+ 
-- PostgreSQL database
+- Google Cloud Project with Sheets API enabled
 - npm or yarn
 
 ### Local Development Setup
@@ -40,38 +40,37 @@ A comprehensive web application for managing patient admissions at Zawar Hospita
    npm install
    ```
 
-3. **Set up environment variables**
+3. **Setup Google Sheets**
+   - Follow the complete guide in `GOOGLE_SHEETS_SETUP.md`
+   - Create service account and download JSON key
+   - Create Google Sheet and note the ID
+
+4. **Set up environment variables**
    ```bash
    cp env.example .env.local
    ```
    
    Update `.env.local` with your configuration:
    ```env
-   DATABASE_URL="postgresql://username:password@localhost:5432/hospital_db"
+   GOOGLE_SHEETS_ID="your-google-sheet-id"
+   GOOGLE_SERVICE_ACCOUNT_KEY='{"type":"service_account",...}'
    NEXTAUTH_SECRET="your-secret-key-here"
    NEXTAUTH_URL="http://localhost:3000"
    DEFAULT_ADMIN_EMAIL="admin@hospital.com"
    DEFAULT_ADMIN_PASSWORD="admin123"
    ```
 
-4. **Set up the database**
+5. **Initialize Google Sheets**
    ```bash
-   # Generate Prisma client
-   npm run db:generate
-   
-   # Push database schema
-   npm run db:push
-   
-   # Seed the database with initial data
-   npx prisma db seed
+   npm run setup:sheets
    ```
 
-5. **Start the development server**
+6. **Start the development server**
    ```bash
    npm run dev
    ```
 
-6. **Access the application**
+7. **Access the application**
    - Open [http://localhost:3000](http://localhost:3000)
    - Login with: `admin@hospital.com` / `admin123`
 
