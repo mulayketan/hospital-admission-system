@@ -6,7 +6,7 @@ import { userSchema } from '@/lib/validations'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -14,6 +14,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
     
     // Make password optional for updates
@@ -21,7 +22,7 @@ export async function PUT(
     const validatedData = updateSchema.parse(body)
 
     // Password is already hashed from client side if provided
-    const updatedUser = await UserModel.update(params.id, validatedData)
+    const updatedUser = await UserModel.update(id, validatedData)
     
     if (!updatedUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
@@ -41,7 +42,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -49,7 +50,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const success = await UserModel.delete(params.id)
+    const { id } = await params
+    const success = await UserModel.delete(id)
     
     if (!success) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })

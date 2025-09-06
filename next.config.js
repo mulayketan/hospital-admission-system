@@ -27,10 +27,8 @@ const nextConfig = {
     return config
   },
   
-  // Experimental features for better performance
-  experimental: {
-    serverComponentsExternalPackages: ['puppeteer'],
-  },
+  // External packages for serverless functions
+  serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium'],
 }
 
 module.exports = nextConfig

@@ -4,20 +4,18 @@ import { authOptions } from '@/lib/auth'
 import { PatientModel } from '@/lib/sheets-models'
 import { patientSchema } from '@/lib/validations'
 
-interface Params {
-  params: {
-    id: string
-  }
-}
-
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const patient = await PatientModel.findById(params.id)
+    const { id } = await params
+    const patient = await PatientModel.findById(id)
 
     if (!patient) {
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 })
@@ -33,17 +31,21 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function PUT(request: NextRequest, { params }: Params) {
+export async function PUT(
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
     const validatedData = patientSchema.parse(body)
 
-    const patient = await PatientModel.update(params.id, {
+    const patient = await PatientModel.update(id, {
       ...validatedData,
       dateOfAdmission: validatedData.dateOfAdmission.toISOString(),
       dateOfDischarge: validatedData.dateOfDischarge ? validatedData.dateOfDischarge.toISOString() : null,
@@ -66,14 +68,18 @@ export async function PUT(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: Params) {
+export async function DELETE(
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const success = await PatientModel.delete(params.id)
+    const { id } = await params
+    const success = await PatientModel.delete(id)
     
     if (!success) {
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 })
