@@ -1,4 +1,5 @@
 import puppeteer from 'puppeteer-core'
+import type { Browser } from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
 import fs from 'fs'
 import { formatDate, formatTimeWithAmPm } from './utils'
@@ -659,7 +660,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
   `
 
   // Adaptive launcher for local vs serverless
-  let browser: puppeteer.Browser | null = null
+  let browser: Browser | null = null
   try {
     try {
       // Prefer @sparticuz/chromium path (works on Vercel)
