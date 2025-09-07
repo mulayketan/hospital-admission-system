@@ -249,7 +249,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                     </td>
                     <td class="value" colspan="2">${patient.other || ''}</td>
                 </tr>
-                ${patient.cashless && (patient.tpa || patient.insuranceCompany) ? `
+                ${patient.cashless ? `
                 <tr>
                     <td class="label">
                         <div>TPA</div>

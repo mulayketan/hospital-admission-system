@@ -47,6 +47,7 @@ const englishToMarathi: Record<string, string> = {
   'sunita': 'सुनीता', 'anita': 'अनिता', 'geeta': 'गीता', 'meera': 'मीरा',
   'shubham': 'शुभम', 'abhishek': 'अभिषेक', 'aniket': 'अनिकेत',
   'sachin': 'सचिन', 'rahul': 'राहुल', 'arjun': 'अर्जुन', 'arun': 'अरुण',
+  'samrat': 'समत्', 'shashikant': 'शशिकांत', 'hoshing': 'होशींग',
   
   // Common surnames
   'sharma': 'शर्मा', 'verma': 'वर्मा', 'gupta': 'गुप्ता', 'agarwal': 'अग्रवाल',
