@@ -21,6 +21,8 @@ interface PatientWithMarathi {
   relationToPatient: string
   ward: 'GENERAL' | 'SEMI' | 'SPECIAL_WITHOUT_AC' | 'SPECIAL_WITH_AC_DELUXE' | 'ICU'
   cashless: boolean
+  tpa: string | null
+  insuranceCompany: string | null
   other: string | null
   admittedByDoctor: string
   treatingDoctor: string | null
@@ -240,13 +242,26 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                         <div class="marathi-text">कॅशलेस</div>
                         <div>Cashless</div>
                     </td>
-                    <td class="value">${patient.other || ''}</td>
+                    <td class="value">${patient.cashless ? 'Yes' : 'No'}</td>
                     <td class="label">
                         <div class="marathi-text">इतर</div>
                         <div>Other</div>
                     </td>
-                    <td class="value" colspan="2"></td>
+                    <td class="value" colspan="2">${patient.other || ''}</td>
                 </tr>
+                ${patient.cashless && (patient.tpa || patient.insuranceCompany) ? `
+                <tr>
+                    <td class="label">
+                        <div>TPA</div>
+                    </td>
+                    <td class="value">${patient.tpa || ''}</td>
+                    <td class="label">
+                        <div class="marathi-text">विमा कंपनी</div>
+                        <div>Insurance Company</div>
+                    </td>
+                    <td class="value" colspan="2">${patient.insuranceCompany || ''}</td>
+                </tr>
+                ` : ''}
                 <tr>
                     <td class="label">
                         <div class="marathi-text">डॉक्टरांचे नाव</div>
