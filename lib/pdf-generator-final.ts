@@ -81,7 +81,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Noto Sans', 'Noto Sans Devanagari', Arial, sans-serif;
-            font-size: 13px;
+            font-size: 11px;
             line-height: 1.2;
             color: #000;
             -webkit-font-smoothing: antialiased;
@@ -354,10 +354,10 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                 <div class="marathi-content">मी / आम्ही रुग्णावर दि. &nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp; / २० &nbsp;&nbsp;&nbsp; पासून दि. &nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp; / २० &nbsp;&nbsp;&nbsp; पर्यंत औषधोपचार करीत आहे / आहोत. आज रोजी घरी जाण्यास परवानगी देत आहोत.</div>
                 <div class="diagnosis-section" style="margin: 15px 0px;">
                     <div style="margin-bottom: 10px;"><strong>Final Diagnosis</strong> ___________________________________________________________________________________________</div>
-                    <div style="margin-bottom: 10px;">___________________________________________________________________________________________</div>
-                    <div style="margin-bottom: 10px;">___________________________________________________________________________________________</div>
-                    <div style="margin-bottom: 10px;">___________________________________________________________________________________________</div>
-                    <div style="margin-bottom: 10px;">___________________________________________________________________________________________</div>
+                    <div style="margin-bottom: 10px;">_____________________________________________________________________________________________________________</div>
+                    <div style="margin-bottom: 10px;">_____________________________________________________________________________________________________________</div>
+                    <div style="margin-bottom: 10px;">_____________________________________________________________________________________________________________</div>
+                    <div style="margin-bottom: 10px;">_____________________________________________________________________________________________________________</div>
                 </div>
                 <div class="marathi-content">
                     <div style="margin: 15px 0px;">

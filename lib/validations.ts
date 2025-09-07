@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 // Raw form schema without transforms for form input
 export const patientFormSchema = z.object({
+  ipdNo: z.string().min(1, 'IPD Number is required'),
   firstName: z.string().min(1, 'First name is required'),
   middleName: z.string().nullable().optional().transform(val => val ?? null),
   surname: z.string().min(1, 'Surname is required'),
@@ -16,6 +17,8 @@ export const patientFormSchema = z.object({
   sex: z.enum(['M', 'F']),
   ward: z.enum(['GENERAL', 'SEMI', 'SPECIAL_WITHOUT_AC', 'SPECIAL_WITH_AC_DELUXE', 'ICU']),
   cashless: z.boolean().default(false),
+  tpa: z.string().nullable().optional().transform(val => val ?? null),
+  insuranceCompany: z.string().nullable().optional().transform(val => val ?? null),
   other: z.string().nullable().optional().transform(val => val ?? null),
   admittedByDoctor: z.string().min(1, 'Admitting doctor is required'),
   dateOfAdmission: z.string().min(1, 'Date of admission is required'),
@@ -23,10 +26,19 @@ export const patientFormSchema = z.object({
   treatingDoctor: z.string().nullable().optional().transform(val => val ?? null),
   dateOfDischarge: z.string().optional(),
   timeOfDischarge: z.string().nullable().optional().transform(val => val ?? null),
+}).refine((data) => {
+  if (data.cashless) {
+    return data.tpa && data.insuranceCompany;
+  }
+  return true;
+}, {
+  message: "TPA and Insurance Company are required when Cashless is selected",
+  path: ["tpa"]
 })
 
 // Schema with transforms for API processing
 export const patientSchema = z.object({
+  ipdNo: z.string().min(1, 'IPD Number is required'),
   firstName: z.string().min(1, 'First name is required'),
   middleName: z.string().nullable().optional().transform(val => val ?? null),
   surname: z.string().min(1, 'Surname is required'),
@@ -41,6 +53,8 @@ export const patientSchema = z.object({
   sex: z.enum(['M', 'F']),
   ward: z.enum(['GENERAL', 'SEMI', 'SPECIAL_WITHOUT_AC', 'SPECIAL_WITH_AC_DELUXE', 'ICU']),
   cashless: z.boolean().default(false),
+  tpa: z.string().nullable().optional().transform(val => val ?? null),
+  insuranceCompany: z.string().nullable().optional().transform(val => val ?? null),
   other: z.string().nullable().optional().transform(val => val ?? null),
   admittedByDoctor: z.string().min(1, 'Admitting doctor is required'),
   dateOfAdmission: z.string().min(1, 'Date of admission is required').transform((str) => new Date(str)),
@@ -48,6 +62,14 @@ export const patientSchema = z.object({
   treatingDoctor: z.string().nullable().optional().transform(val => val ?? null),
   dateOfDischarge: z.string().optional().transform((str) => str ? new Date(str) : undefined),
   timeOfDischarge: z.string().nullable().optional().transform(val => val ?? null),
+}).refine((data) => {
+  if (data.cashless) {
+    return data.tpa && data.insuranceCompany;
+  }
+  return true;
+}, {
+  message: "TPA and Insurance Company are required when Cashless is selected",
+  path: ["tpa"]
 })
 
 export const admissionSchema = z.object({

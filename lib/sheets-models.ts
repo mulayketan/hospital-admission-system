@@ -37,6 +37,8 @@ export interface Patient {
   relationToPatient: string
   ward: 'GENERAL' | 'SEMI' | 'SPECIAL_WITHOUT_AC' | 'SPECIAL_WITH_AC_DELUXE' | 'ICU'
   cashless: boolean
+  tpa: string | null
+  insuranceCompany: string | null
   other: string | null
   admittedByDoctor: string
   treatingDoctor: string | null
@@ -69,6 +71,20 @@ export interface Admission {
   dischargeDate: string | null
   ward: string
   doctorName: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TPA {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface InsuranceCompany {
+  id: string
+  name: string
   createdAt: string
   updatedAt: string
 }
@@ -347,7 +363,7 @@ export class PatientModel {
   static async initializeSheet(): Promise<void> {
     const headers = [
       'id', 'ipdNo', 'firstName', 'middleName', 'surname', 'firstNameMarathi', 'middleNameMarathi', 'surnameMarathi',
-      'phoneNo', 'age', 'sex', 'address', 'nearestRelativeName', 'relationToPatient', 'ward', 'cashless', 'other',
+      'phoneNo', 'age', 'sex', 'address', 'nearestRelativeName', 'relationToPatient', 'ward', 'cashless', 'tpa', 'insuranceCompany', 'other',
       'admittedByDoctor', 'treatingDoctor', 'dateOfAdmission', 'timeOfAdmission',
       'dateOfDischarge', 'timeOfDischarge', 'createdAt', 'updatedAt'
     ]
@@ -377,6 +393,8 @@ export class PatientModel {
       relationToPatient: patient.relationToPatient,
       ward: patient.ward as any,
       cashless: patient.cashless === 'true',
+      tpa: patient.tpa,
+      insuranceCompany: patient.insuranceCompany,
       other: patient.other,
       admittedByDoctor: patient.admittedByDoctor,
       treatingDoctor: patient.treatingDoctor,
@@ -407,6 +425,8 @@ export class PatientModel {
       patient.relationToPatient,
       patient.ward,
       patient.cashless.toString(),
+      patient.tpa || '',
+      patient.insuranceCompany || '',
       patient.other || '',
       patient.admittedByDoctor,
       patient.treatingDoctor || '',
@@ -490,6 +510,98 @@ export class WardChargesModel {
       o2Charges: charges.o2Charges ? parseFloat(charges.o2Charges) : null,
       createdAt: charges.createdAt,
       updatedAt: charges.updatedAt
+    }
+  }
+}
+
+// TPA model functions
+export class TPAModel {
+  static async findMany(): Promise<TPA[]> {
+    try {
+      const data = await readSheet(SHEET_NAMES.TPA)
+      if (data.length <= 1) return []
+      
+      const headers = data[0]
+      return data.slice(1).map(row => this.rowToTPA(headers, row))
+    } catch (error) {
+      console.error('Error finding TPAs:', error)
+      return []
+    }
+  }
+  
+  static async initializeSheet(): Promise<void> {
+    const headers = ['id', 'name', 'createdAt', 'updatedAt']
+    await appendSheet(SHEET_NAMES.TPA, [headers])
+    
+    // Add initial TPA data
+    const initialData = [
+      ['tpa1', 'Star Health Insurance', new Date().toISOString(), new Date().toISOString()],
+      ['tpa2', 'ICICI Lombard', new Date().toISOString(), new Date().toISOString()],
+      ['tpa3', 'HDFC ERGO', new Date().toISOString(), new Date().toISOString()],
+      ['tpa4', 'Bajaj Allianz', new Date().toISOString(), new Date().toISOString()],
+      ['tpa5', 'Oriental Insurance', new Date().toISOString(), new Date().toISOString()]
+    ]
+    
+    await appendSheet(SHEET_NAMES.TPA, initialData)
+  }
+  
+  private static rowToTPA(headers: string[], row: string[]): TPA {
+    const tpa: any = {}
+    headers.forEach((header, index) => {
+      tpa[header] = row[index] || null
+    })
+    
+    return {
+      id: tpa.id,
+      name: tpa.name,
+      createdAt: tpa.createdAt,
+      updatedAt: tpa.updatedAt
+    }
+  }
+}
+
+// Insurance Company model functions
+export class InsuranceCompanyModel {
+  static async findMany(): Promise<InsuranceCompany[]> {
+    try {
+      const data = await readSheet(SHEET_NAMES.INSURANCE_COMPANIES)
+      if (data.length <= 1) return []
+      
+      const headers = data[0]
+      return data.slice(1).map(row => this.rowToInsuranceCompany(headers, row))
+    } catch (error) {
+      console.error('Error finding insurance companies:', error)
+      return []
+    }
+  }
+  
+  static async initializeSheet(): Promise<void> {
+    const headers = ['id', 'name', 'createdAt', 'updatedAt']
+    await appendSheet(SHEET_NAMES.INSURANCE_COMPANIES, [headers])
+    
+    // Add initial insurance company data
+    const initialData = [
+      ['ins1', 'LIC of India', new Date().toISOString(), new Date().toISOString()],
+      ['ins2', 'SBI General Insurance', new Date().toISOString(), new Date().toISOString()],
+      ['ins3', 'New India Assurance', new Date().toISOString(), new Date().toISOString()],
+      ['ins4', 'United India Insurance', new Date().toISOString(), new Date().toISOString()],
+      ['ins5', 'National Insurance Company', new Date().toISOString(), new Date().toISOString()]
+    ]
+    
+    await appendSheet(SHEET_NAMES.INSURANCE_COMPANIES, initialData)
+  }
+  
+  private static rowToInsuranceCompany(headers: string[], row: string[]): InsuranceCompany {
+    const company: any = {}
+    headers.forEach((header, index) => {
+      company[header] = row[index] || null
+    })
+    
+    return {
+      id: company.id,
+      name: company.name,
+      createdAt: company.createdAt,
+      updatedAt: company.updatedAt
     }
   }
 }

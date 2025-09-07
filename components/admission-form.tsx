@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { SimpleMarathiInput } from '@/components/ui/simple-marathi-input'
+import { GoogleMarathiInput } from '@/components/ui/google-marathi-input'
 import { patientFormSchema, patientSchema, type PatientFormInput, type PatientInput } from '@/lib/validations'
 import { translations } from '@/lib/translations'
 import { generateIPDNumber } from '@/lib/utils'
@@ -48,6 +48,9 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
   const [selectedWard, setSelectedWard] = useState<string>('GENERAL')
   const [wardCharges, setWardCharges] = useState<WardCharges[]>([])
   const [isLoadingCharges, setIsLoadingCharges] = useState(true)
+  const [tpaList, setTpaList] = useState<Array<{id: string, name: string}>>([])
+  const [insuranceCompanies, setInsuranceCompanies] = useState<Array<{id: string, name: string}>>([])
+  const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true)
   
   const t = translations[language]
 
@@ -61,6 +64,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
   } = useForm<PatientFormInput>({
     resolver: zodResolver(patientFormSchema),
     defaultValues: {
+      ipdNo: initialData?.ipdNo || '',
       firstName: initialData?.firstName || '',
       middleName: initialData?.middleName || null,
       surname: initialData?.surname || '',
@@ -75,6 +79,8 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
       sex: initialData?.sex || 'M',
       ward: initialData?.ward || 'GENERAL',
       cashless: initialData?.cashless || false,
+      tpa: initialData?.tpa || null,
+      insuranceCompany: initialData?.insuranceCompany || null,
       other: initialData?.other || null,
       admittedByDoctor: initialData?.admittedByDoctor || '',
       dateOfAdmission: initialData?.dateOfAdmission ? 
@@ -108,6 +114,35 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
     }
 
     fetchWardCharges()
+  }, [])
+
+  // Fetch TPA and Insurance Company data
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const [tpaResponse, insuranceResponse] = await Promise.all([
+          fetch('/api/tpa'),
+          fetch('/api/insurance-companies')
+        ])
+
+        if (tpaResponse.ok) {
+          const tpaData = await tpaResponse.json()
+          setTpaList(tpaData.tpaList || [])
+        }
+
+        if (insuranceResponse.ok) {
+          const insuranceData = await insuranceResponse.json()
+          setInsuranceCompanies(insuranceData.insuranceCompanies || [])
+        }
+      } catch (error) {
+        console.error('Error fetching dropdown data:', error)
+        toast.error('Failed to load TPA and Insurance data')
+      } finally {
+        setIsLoadingDropdowns(false)
+      }
+    }
+
+    fetchDropdownData()
   }, [])
 
   // Auto-convert English names to Marathi
@@ -195,7 +230,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
         </div>
         <div className="mt-2 text-right">
           <span className="border border-black px-2 py-1">
-            {t.ipdNo}
+            {t.ipdNo}: {watch('ipdNo') || '___________'}
           </span>
         </div>
       </div>
@@ -253,6 +288,24 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
 
       {/* Form */}
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+        {/* IPD Number */}
+        <div className="p-4 border border-gray-300">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="ipdNo">{t.ipdNo}</Label>
+              <Input
+                id="ipdNo"
+                {...register('ipdNo')}
+                className={errors.ipdNo ? 'border-red-500' : ''}
+                placeholder="Enter IPD Number"
+              />
+              {errors.ipdNo && (
+                <p className="text-red-500 text-sm mt-1">{errors.ipdNo.message}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Personal Information */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border border-gray-300">
           <div>
@@ -290,7 +343,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
           {/* Marathi Name Fields */}
           <div>
             <Label htmlFor="firstNameMarathi">First Name (मराठी)</Label>
-            <SimpleMarathiInput
+            <GoogleMarathiInput
               id="firstNameMarathi"
               {...register('firstNameMarathi')}
               placeholder="Type 'ram' for 'राम' (Tab to convert)"
@@ -300,7 +353,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
 
           <div>
             <Label htmlFor="middleNameMarathi">Middle Name (मराठी)</Label>
-            <SimpleMarathiInput
+            <GoogleMarathiInput
               id="middleNameMarathi"
               {...register('middleNameMarathi')}
               placeholder="Type 'vishnu' for 'विष्णू' (Tab to convert)"
@@ -310,7 +363,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
 
           <div>
             <Label htmlFor="surnameMarathi">Surname (मराठी)</Label>
-            <SimpleMarathiInput
+            <GoogleMarathiInput
               id="surnameMarathi"
               {...register('surnameMarathi')}
               placeholder="Type 'sharma' for 'शर्मा' (Tab to convert)"
@@ -421,23 +474,75 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
               )}
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="cashless"
-                  {...register('cashless')}
-                  className="rounded"
-                />
-                <Label htmlFor="cashless">{t.cashless}</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="cashless"
+                {...register('cashless')}
+                className="rounded"
+              />
+              <Label htmlFor="cashless">{t.cashless}</Label>
+            </div>
+          </div>
+
+          {/* TPA and Insurance Company fields - shown only when cashless is selected */}
+          {watch('cashless') && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="tpa">TPA *</Label>
+                <Select onValueChange={(value) => setValue('tpa', value)}>
+                  <SelectTrigger className={errors.tpa ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select TPA" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingDropdowns ? (
+                      <SelectItem value="" disabled>Loading TPAs...</SelectItem>
+                    ) : (
+                      tpaList.map((tpa) => (
+                        <SelectItem key={tpa.id} value={tpa.name}>
+                          {tpa.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.tpa && (
+                  <p className="text-red-500 text-sm mt-1">{errors.tpa.message}</p>
+                )}
               </div>
-              <div className="flex-1">
-                <Label htmlFor="other">{t.other}</Label>
-                <Input
-                  id="other"
-                  {...register('other')}
-                />
+
+              <div>
+                <Label htmlFor="insuranceCompany">Insurance Company *</Label>
+                <Select onValueChange={(value) => setValue('insuranceCompany', value)}>
+                  <SelectTrigger className={errors.insuranceCompany ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select Insurance Company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingDropdowns ? (
+                      <SelectItem value="" disabled>Loading Insurance Companies...</SelectItem>
+                    ) : (
+                      insuranceCompanies.map((company) => (
+                        <SelectItem key={company.id} value={company.name}>
+                          {company.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.insuranceCompany && (
+                  <p className="text-red-500 text-sm mt-1">{errors.insuranceCompany.message}</p>
+                )}
               </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <Label htmlFor="other">{t.other}</Label>
+              <Input
+                id="other"
+                {...register('other')}
+              />
             </div>
           </div>
 
