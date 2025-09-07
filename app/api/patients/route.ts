@@ -48,7 +48,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    console.log('Raw patient data from form:', {
+      cashless: body.cashless,
+      tpa: body.tpa,
+      insuranceCompany: body.insuranceCompany
+    })
     const validatedData = patientSchema.parse(body)
+    console.log('Validated patient data:', {
+      cashless: validatedData.cashless,
+      tpa: validatedData.tpa,
+      insuranceCompany: validatedData.insuranceCompany
+    })
 
     const patient = await PatientModel.create({
       ...validatedData,
