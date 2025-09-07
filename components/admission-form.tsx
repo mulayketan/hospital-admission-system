@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GoogleMarathiInput } from '@/components/ui/google-marathi-input'
 import { patientFormSchema, patientSchema, type PatientFormInput, type PatientInput } from '@/lib/validations'
 import { translations } from '@/lib/translations'
-import { generateIPDNumber } from '@/lib/utils'
 import { convertFullNameToMarathi } from '@/lib/name-converter'
 
 interface AdmissionFormProps {

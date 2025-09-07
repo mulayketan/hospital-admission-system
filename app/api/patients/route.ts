@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { PatientModel } from '@/lib/sheets-models'
 import { patientSchema } from '@/lib/validations'
-import { generateIPDNumber } from '@/lib/utils'
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,12 +50,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = patientSchema.parse(body)
 
-    // Generate IPD number if not provided
-    const ipdNo = generateIPDNumber()
-
     const patient = await PatientModel.create({
       ...validatedData,
-      ipdNo,
+      ipdNo: validatedData.ipdNo, // Use the user-provided IPD number
       dateOfAdmission: validatedData.dateOfAdmission.toISOString(),
       dateOfDischarge: validatedData.dateOfDischarge ? validatedData.dateOfDischarge.toISOString() : null,
       firstNameMarathi: validatedData.firstNameMarathi || '',
