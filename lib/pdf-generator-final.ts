@@ -247,12 +247,12 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                     <td class="label">
                         <div>TPA</div>
                     </td>
-                    <td class="value">${patient.tpa === undefined ? 'Not Available' : (patient.tpa || 'N/A')}</td>
+                    <td class="value">${patient.tpa || ''}</td>
                     <td class="label">
                         <div class="marathi-text">विमा कंपनी</div>
                         <div>Insurance Company</div>
                     </td>
-                    <td class="value" colspan="3">${patient.insuranceCompany === undefined ? 'Not Available' : (patient.insuranceCompany || 'N/A')}</td>
+                    <td class="value" colspan="3">${patient.insuranceCompany || ''}</td>
                 </tr>
                 ` : ''}
                 <tr>
