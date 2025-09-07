@@ -17,8 +17,8 @@ export const SHEET_NAMES = {
   PATIENTS: 'Patients', 
   WARD_CHARGES: 'WardCharges',
   ADMISSIONS: 'Admissions',
-  TPA: 'TPA',
-  INSURANCE_COMPANIES: 'InsuranceCompanies'
+  TPA: 'TPAList',
+  INSURANCE_COMPANIES: 'InsuranceList'
 } as const
 
 // Initialize Google Sheets client
