@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ImprovedMarathiInput } from '@/components/ui/improved-marathi-input'
+import { WorkingMarathiInput } from '@/components/ui/working-marathi-input'
 import { patientFormSchema, patientSchema, type PatientFormInput, type PatientInput } from '@/lib/validations'
 import { translations } from '@/lib/translations'
 import { convertFullNameToMarathi } from '@/lib/name-converter'
@@ -342,7 +342,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
           {/* Marathi Name Fields */}
           <div>
             <Label htmlFor="firstNameMarathi">First Name (मराठी)</Label>
-            <ImprovedMarathiInput
+            <WorkingMarathiInput
               id="firstNameMarathi"
               {...register('firstNameMarathi')}
               placeholder="Type 'samrat' - converts to समत्"
@@ -352,7 +352,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
 
           <div>
             <Label htmlFor="middleNameMarathi">Middle Name (मराठी)</Label>
-            <ImprovedMarathiInput
+            <WorkingMarathiInput
               id="middleNameMarathi"
               {...register('middleNameMarathi')}
               placeholder="Type 'shashikant' - converts to शशिकांत"
@@ -362,7 +362,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
 
           <div>
             <Label htmlFor="surnameMarathi">Surname (मराठी)</Label>
-            <ImprovedMarathiInput
+            <WorkingMarathiInput
               id="surnameMarathi"
               {...register('surnameMarathi')}
               placeholder="Type 'hoshing' - converts to होशींग"
@@ -495,7 +495,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
                   </SelectTrigger>
                   <SelectContent>
                     {isLoadingDropdowns ? (
-                      <SelectItem value="" disabled>Loading TPAs...</SelectItem>
+                      <SelectItem value="loading" disabled>Loading TPAs...</SelectItem>
                     ) : (
                       tpaList.map((tpa) => (
                         <SelectItem key={tpa.id} value={tpa.name}>
@@ -518,7 +518,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
                   </SelectTrigger>
                   <SelectContent>
                     {isLoadingDropdowns ? (
-                      <SelectItem value="" disabled>Loading Insurance Companies...</SelectItem>
+                      <SelectItem value="loading-insurance" disabled>Loading Insurance Companies...</SelectItem>
                     ) : (
                       insuranceCompanies.map((company) => (
                         <SelectItem key={company.id} value={company.name}>
