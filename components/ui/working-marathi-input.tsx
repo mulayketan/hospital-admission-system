@@ -229,7 +229,7 @@ export function WorkingMarathiInput({
         value={displayValue}
         onChange={handleInputChange}
         className={`${props.className || ''} font-marathi pr-16`}
-        placeholder={props.placeholder || 'Type in English - converts to मराठी'}
+        placeholder={props.placeholder || ''}
         autoComplete="off"
       />
       

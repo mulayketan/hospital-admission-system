@@ -345,7 +345,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
             <WorkingMarathiInput
               id="firstNameMarathi"
               {...register('firstNameMarathi')}
-              placeholder="Type 'samrat' - converts to समत्"
+              placeholder=""
               onValueChange={(value) => setValue('firstNameMarathi', value)}
             />
           </div>
@@ -355,7 +355,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
             <WorkingMarathiInput
               id="middleNameMarathi"
               {...register('middleNameMarathi')}
-              placeholder="Type 'shashikant' - converts to शशिकांत"
+              placeholder=""
               onValueChange={(value) => setValue('middleNameMarathi', value)}
             />
           </div>
@@ -365,7 +365,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
             <WorkingMarathiInput
               id="surnameMarathi"
               {...register('surnameMarathi')}
-              placeholder="Type 'hoshing' - converts to होशींग"
+              placeholder=""
               onValueChange={(value) => setValue('surnameMarathi', value)}
             />
           </div>

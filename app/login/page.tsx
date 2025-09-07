@@ -118,31 +118,6 @@ function LoginForm() {
               {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
           </div>
-          
-          <div className="text-center space-y-3">
-            <p className="text-sm text-gray-600">
-              Default credentials: admin@hospital.com / admin123
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                const form = document.querySelector('form') as HTMLFormElement
-                const emailInput = form?.querySelector('#email') as HTMLInputElement
-                const passwordInput = form?.querySelector('#password') as HTMLInputElement
-                if (emailInput && passwordInput) {
-                  emailInput.value = 'admin@hospital.com'
-                  passwordInput.value = 'admin123'
-                  // Trigger form validation
-                  emailInput.dispatchEvent(new Event('input', { bubbles: true }))
-                  passwordInput.dispatchEvent(new Event('input', { bubbles: true }))
-                }
-              }}
-            >
-              Fill Default Credentials
-            </Button>
-          </div>
         </form>
       </div>
     </div>
