@@ -28,7 +28,8 @@ export async function GET(
       id: patient.id,
       cashless: patient.cashless,
       tpa: patient.tpa,
-      insuranceCompany: patient.insuranceCompany
+      insuranceCompany: patient.insuranceCompany,
+      fullPatient: patient
     })
 
     // Fetch ward charges from Google Sheets

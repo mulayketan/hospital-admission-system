@@ -115,7 +115,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         .terms-section { margin: 15px 0; border: 1px solid #000; padding: 8px; clear: both; }
         .term-item { margin-bottom: 6px; font-size: 13px; line-height: 1.3; }
         /* Payee Slip */
-        .payee-section { margin: 20px 0; border: 1px solid #000; padding: 8px; clear: both; }
+        .payee-section { margin: 30px 0 20px 0; border: 1px solid #000; padding: 8px; clear: both; }
         .payee-header { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 6px; border: 1px solid #000; padding: 3px; }
         .charges-table { width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed; }
         .charges-table th, .charges-table td { border: 1px solid #000; padding: 4px 3px; text-align: center; font-size: 12px; word-wrap: break-word; }
@@ -205,14 +205,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                         <div class="marathi-text">पेशंटशी नाते</div>
                         <div>Relation to Patient</div>
                     </td>
-                    <td class="value" colspan="2">${patient.relationToPatient}</td>
-                </tr>
-                <tr>
-                    <td class="label">
-                        <div class="marathi-text">पत्ता</div>
-                        <div>Address</div>
-                    </td>
-                    <td class="value" colspan="3">${patient.address}</td>
+                    <td class="value">${patient.relationToPatient}</td>
                     <td class="label">
                         <div class="marathi-text">फोन नं.</div>
                         <div>Ph. No.</div>
@@ -221,22 +214,22 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                 </tr>
                 <tr>
                     <td class="label">
-                        <div class="marathi-text">वय</div>
-                        <div>Age</div>
+                        <div class="marathi-text">पत्ता</div>
+                        <div>Address</div>
                     </td>
-                    <td class="value">${patient.age}</td>
+                    <td class="value" colspan="3">${patient.address}</td>
                     <td class="label">
-                        <div class="marathi-text">लिंग</div>
-                        <div>Sex : M / F</div>
+                        <div class="marathi-text">वय / लिंग</div>
+                        <div>Age / Sex</div>
                     </td>
-                    <td class="value">${patient.sex}</td>
+                    <td class="value">${patient.age} ${patient.sex}</td>
+                </tr>
+                <tr>
                     <td class="label">
                         <div class="marathi-text">वार्ड</div>
                         <div>Ward</div>
                     </td>
                     <td class="value">${wardDisplayNames[patient.ward] || patient.ward}</td>
-                </tr>
-                <tr>
                     <td class="label">
                         <span style="margin-right: 5px;">${patient.cashless ? '☑' : '☐'}</span>
                         <div class="marathi-text">कॅशलेस</div>
@@ -247,9 +240,9 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                         <div class="marathi-text">इतर</div>
                         <div>Other</div>
                     </td>
-                    <td class="value" colspan="2">${patient.other || ''}</td>
+                    <td class="value">${patient.other || ''}</td>
                 </tr>
-                ${patient.cashless ? `
+                ${patient.cashless && (patient.tpa || patient.insuranceCompany) ? `
                 <tr>
                     <td class="label">
                         <div>TPA</div>
@@ -259,7 +252,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                         <div class="marathi-text">विमा कंपनी</div>
                         <div>Insurance Company</div>
                     </td>
-                    <td class="value" colspan="2">${patient.insuranceCompany || ''}</td>
+                    <td class="value" colspan="3">${patient.insuranceCompany || ''}</td>
                 </tr>
                 ` : ''}
                 <tr>
