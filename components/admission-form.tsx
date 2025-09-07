@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { GoogleMarathiInput } from '@/components/ui/google-marathi-input'
+import { GoogleTransliterationInput } from '@/components/ui/google-transliteration-input'
 import { patientFormSchema, patientSchema, type PatientFormInput, type PatientInput } from '@/lib/validations'
 import { translations } from '@/lib/translations'
 import { convertFullNameToMarathi } from '@/lib/name-converter'
@@ -342,30 +342,30 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
           {/* Marathi Name Fields */}
           <div>
             <Label htmlFor="firstNameMarathi">First Name (मराठी)</Label>
-            <GoogleMarathiInput
+            <GoogleTransliterationInput
               id="firstNameMarathi"
               {...register('firstNameMarathi')}
-              placeholder="Type 'ram' for 'राम' (Tab to convert)"
+              placeholder="Type 'samrat' (auto-converts to मराठी)"
               onValueChange={(value) => setValue('firstNameMarathi', value)}
             />
           </div>
 
           <div>
             <Label htmlFor="middleNameMarathi">Middle Name (मराठी)</Label>
-            <GoogleMarathiInput
+            <GoogleTransliterationInput
               id="middleNameMarathi"
               {...register('middleNameMarathi')}
-              placeholder="Type 'vishnu' for 'विष्णू' (Tab to convert)"
+              placeholder="Type 'shashikant' (auto-converts to मराठी)"
               onValueChange={(value) => setValue('middleNameMarathi', value)}
             />
           </div>
 
           <div>
             <Label htmlFor="surnameMarathi">Surname (मराठी)</Label>
-            <GoogleMarathiInput
+            <GoogleTransliterationInput
               id="surnameMarathi"
               {...register('surnameMarathi')}
-              placeholder="Type 'sharma' for 'शर्मा' (Tab to convert)"
+              placeholder="Type 'hoshing' (auto-converts to मराठी)"
               onValueChange={(value) => setValue('surnameMarathi', value)}
             />
           </div>
