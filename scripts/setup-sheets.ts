@@ -83,6 +83,8 @@ async function setupGoogleSheets() {
       relationToPatient: 'पत्नी',
       ward: 'GENERAL',
       cashless: false,
+      tpa: null,
+      insuranceCompany: null,
       other: '',
       admittedByDoctor: 'डॉ. पटेल',
       treatingDoctor: 'डॉ. शाह',

@@ -42,7 +42,7 @@ const marathiMap: Record<string, string> = {
   'ketan': 'केतन', 'prafulla': 'प्रफुल्ल', 'jitendra': 'जितेंद्र',
   'suresh': 'सुरेश', 'mahesh': 'महेश', 'rajesh': 'राजेश', 'dinesh': 'दिनेश',
   'mukesh': 'मुकेश', 'hitesh': 'हितेश', 'ritesh': 'रितेश', 'umesh': 'उमेश',
-  'ramesh': 'रमेश', 'ganesh': 'गणेश', 'naresh': 'नरेश', 'yogesh': 'योगेश',
+  'ramesh': 'रमेश', 'naresh': 'नरेश', 'yogesh': 'योगेश',
   
   'priya': 'प्रिया', 'pooja': 'पूजा', 'sneha': 'स्नेहा', 'kavita': 'कविता',
   'sunita': 'सुनीता', 'anita': 'अनिता', 'geeta': 'गीता', 'meera': 'मीरा',
