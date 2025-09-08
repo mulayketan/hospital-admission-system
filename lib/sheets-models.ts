@@ -53,13 +53,16 @@ export interface Patient {
 export interface WardCharges {
   id: string
   wardType: 'GENERAL' | 'SEMI' | 'SPECIAL_WITHOUT_AC' | 'SPECIAL_WITH_AC_DELUXE' | 'ICU'
-  bedCharges: number
-  doctorCharges: number
-  nursingCharges: number
-  asstDoctorCharges: number
-  totalPerDay: number
-  monitorCharges: number | null
-  o2Charges: number | null
+  bedCharges: number | string
+  doctorCharges: number | string
+  nursingCharges: number | string
+  asstDoctorCharges: number | string
+  totalPerDay: number | string
+  monitorCharges: number | string | null
+  o2Charges: number | string | null
+  syringePumpCharges: number | string | null
+  bloodTransfusionCharges: number | string | null
+  visitingCharges: number | string | null
   createdAt: string
   updatedAt: string
 }
@@ -473,25 +476,32 @@ export class WardChargesModel {
   }
   
   static async initializeSheet(): Promise<void> {
+    // Only create headers if sheet doesn't exist - data comes from Google Sheets
     const headers = [
       'id', 'wardType', 'bedCharges', 'doctorCharges', 'nursingCharges',
       'asstDoctorCharges', 'totalPerDay', 'monitorCharges', 'o2Charges',
+      'syringePumpCharges', 'bloodTransfusionCharges', 'visitingCharges',
       'createdAt', 'updatedAt'
     ]
     await appendSheet(SHEET_NAMES.WARD_CHARGES, [headers])
-    
-    // Add initial ward charges data
-    const initialData = [
-      ['ward1', 'GENERAL', '800', '400', '300', '200', '1700', '0', '0', new Date().toISOString(), new Date().toISOString()],
-      ['ward2', 'SEMI', '1400', '500', '300', '300', '2500', '0', '0', new Date().toISOString(), new Date().toISOString()],
-      ['ward3', 'SPECIAL_WITHOUT_AC', '2200', '600', '400', '300', '3500', '0', '0', new Date().toISOString(), new Date().toISOString()],
-      ['ward4', 'SPECIAL_WITH_AC_DELUXE', '2600', '600', '500', '300', '4000', '0', '0', new Date().toISOString(), new Date().toISOString()],
-      ['ward5', 'ICU', '2000', '700', '600', '400', '3700', '500', '300', new Date().toISOString(), new Date().toISOString()]
-    ]
-    
-    await appendSheet(SHEET_NAMES.WARD_CHARGES, initialData)
+    // Note: Data should be managed directly in Google Sheets, not inserted via code
   }
   
+  // Helper function to parse range values like "1000 to 2000" or single values like "1500"
+  private static parseChargeValue(value: string | null): number | string {
+    if (!value) return 0
+    
+    // Check if it's a range (contains "to" or "-")
+    const rangeMatch = value.match(/(\d+)\s*(?:to|-)\s*(\d+)/)
+    if (rangeMatch) {
+      return `${rangeMatch[1]} to ${rangeMatch[2]}`
+    }
+    
+    // Try to parse as single number
+    const singleValue = parseFloat(value)
+    return isNaN(singleValue) ? value.toString() : singleValue
+  }
+
   private static rowToWardCharges(headers: string[], row: string[]): WardCharges {
     const charges: any = {}
     headers.forEach((header, index) => {
@@ -501,13 +511,16 @@ export class WardChargesModel {
     return {
       id: charges.id,
       wardType: charges.wardType as any,
-      bedCharges: parseFloat(charges.bedCharges) || 0,
-      doctorCharges: parseFloat(charges.doctorCharges) || 0,
-      nursingCharges: parseFloat(charges.nursingCharges) || 0,
-      asstDoctorCharges: parseFloat(charges.asstDoctorCharges) || 0,
-      totalPerDay: parseFloat(charges.totalPerDay) || 0,
-      monitorCharges: charges.monitorCharges ? parseFloat(charges.monitorCharges) : null,
-      o2Charges: charges.o2Charges ? parseFloat(charges.o2Charges) : null,
+      bedCharges: this.parseChargeValue(charges.bedCharges) as any,
+      doctorCharges: this.parseChargeValue(charges.doctorCharges) as any,
+      nursingCharges: this.parseChargeValue(charges.nursingCharges) as any,
+      asstDoctorCharges: this.parseChargeValue(charges.asstDoctorCharges) as any,
+      totalPerDay: this.parseChargeValue(charges.totalPerDay) as any,
+      monitorCharges: charges.monitorCharges ? this.parseChargeValue(charges.monitorCharges) as any : null,
+      o2Charges: charges.o2Charges ? this.parseChargeValue(charges.o2Charges) as any : null,
+      syringePumpCharges: charges.syringePumpCharges ? this.parseChargeValue(charges.syringePumpCharges) as any : null,
+      bloodTransfusionCharges: charges.bloodTransfusionCharges ? this.parseChargeValue(charges.bloodTransfusionCharges) as any : null,
+      visitingCharges: charges.visitingCharges ? this.parseChargeValue(charges.visitingCharges) as any : null,
       createdAt: charges.createdAt,
       updatedAt: charges.updatedAt
     }

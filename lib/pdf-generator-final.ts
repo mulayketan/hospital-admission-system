@@ -3,6 +3,7 @@ import type { Browser } from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
 import fs from 'fs'
 import { formatDate, formatTimeWithAmPm } from './utils'
+import { WardChargesModel } from './sheets-models'
 
 interface PatientWithMarathi {
   id: string
@@ -37,13 +38,16 @@ interface PatientWithMarathi {
 interface PDFGenerationOptions {
   patient: PatientWithMarathi
   wardCharges?: {
-    bedCharges: number
-    doctorCharges: number
-    nursingCharges: number
-    asstDoctorCharges: number
-    totalPerDay: number
-    monitorCharges?: number
-    o2Charges?: number
+    bedCharges: number | string
+    doctorCharges: number | string
+    nursingCharges: number | string
+    asstDoctorCharges: number | string
+    totalPerDay: number | string
+    monitorCharges?: number | string
+    o2Charges?: number | string
+    syringePumpCharges?: number | string
+    bloodTransfusionCharges?: number | string
+    visitingCharges?: number | string
   }
 }
 
@@ -55,15 +59,41 @@ const wardDisplayNames: Record<string, string> = {
   'ICU': 'ICU'
 }
 
+// Helper function to format charge values (handles both numbers and ranges)
+const formatChargeValue = (value: number | string | null | undefined): string => {
+  if (value === null || value === undefined) return '0'
+  return value.toString()
+}
+
 export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerationOptions): Promise<Buffer> => {
   
-  const allWardCharges = [
-    { wardType: 'GENERAL', displayName: 'G.W.', bedCharges: 800, doctorCharges: 400, nursingCharges: 300, asstDoctorCharges: 200, totalPerDay: 1700 },
-    { wardType: 'SEMI', displayName: 'Semi', bedCharges: 1400, doctorCharges: 500, nursingCharges: 300, asstDoctorCharges: 300, totalPerDay: 2500 },
-    { wardType: 'SPECIAL_WITHOUT_AC', displayName: 'Special without AC', bedCharges: 2200, doctorCharges: 600, nursingCharges: 400, asstDoctorCharges: 300, totalPerDay: 3500 },
-    { wardType: 'SPECIAL_WITH_AC_DELUXE', displayName: 'Special with AC (Deluxe)', bedCharges: 2600, doctorCharges: 600, nursingCharges: 500, asstDoctorCharges: 300, totalPerDay: 4000 },
-    { wardType: 'ICU', displayName: 'ICU', bedCharges: 2000, doctorCharges: 700, nursingCharges: 600, asstDoctorCharges: 400, totalPerDay: 3700 }
-  ]
+  // Fetch ward charges from Google Sheets
+  const wardChargesFromSheets = await WardChargesModel.findMany()
+  console.log('Ward charges fetched from Google Sheets:', wardChargesFromSheets)
+  
+  // Map the ward charges to the format expected by the PDF with display names
+  const allWardCharges = wardChargesFromSheets.map(ward => ({
+    wardType: ward.wardType,
+    displayName: wardDisplayNames[ward.wardType] || ward.wardType,
+    bedCharges: ward.bedCharges,
+    doctorCharges: ward.doctorCharges,
+    nursingCharges: ward.nursingCharges,
+    asstDoctorCharges: ward.asstDoctorCharges,
+    totalPerDay: ward.totalPerDay
+  }))
+  console.log('Mapped ward charges for PDF:', allWardCharges)
+  
+  // Fallback to static data if no ward charges found in Google Sheets
+  if (allWardCharges.length === 0) {
+    console.warn('No ward charges found in Google Sheets, using fallback static data')
+    allWardCharges.push(
+      { wardType: 'GENERAL', displayName: 'G.W.', bedCharges: 800, doctorCharges: 400, nursingCharges: 300, asstDoctorCharges: 200, totalPerDay: 1700 },
+      { wardType: 'SEMI', displayName: 'Semi', bedCharges: 1400, doctorCharges: 500, nursingCharges: 300, asstDoctorCharges: 300, totalPerDay: 2500 },
+      { wardType: 'SPECIAL_WITHOUT_AC', displayName: 'Special without AC', bedCharges: 2200, doctorCharges: 600, nursingCharges: 400, asstDoctorCharges: 300, totalPerDay: 3500 },
+      { wardType: 'SPECIAL_WITH_AC_DELUXE', displayName: 'Special with AC (Deluxe)', bedCharges: 2600, doctorCharges: 600, nursingCharges: 500, asstDoctorCharges: 300, totalPerDay: 4000 },
+      { wardType: 'ICU', displayName: 'ICU', bedCharges: 2000, doctorCharges: 700, nursingCharges: 600, asstDoctorCharges: 400, totalPerDay: 3700 }
+    )
+  }
   
   const html = `
 <!DOCTYPE html>
@@ -97,8 +127,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px; position: relative; }
         .logo-section { display: flex; align-items: center; width: 200px; }
         .logo-container { display: flex; align-items: center; }
-        .logo-circle { width: 60px; height: 60px; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; position: relative; }
-        .inner-circle { width: 45px; height: 45px; border: 1px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; }
+        .logo-image { height: 60px; width: auto; margin-right: 15px; }
         .hospital-text { display: flex; flex-direction: column; }
         .hospital-name { font-size: 19px; font-weight: bold; line-height: 1.1; margin-bottom: 3px; }
         .hospital-line { width: 120px; height: 2px; background: #000; }
@@ -153,10 +182,10 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         <div class="header">
             <div class="logo-section">
                 <div class="logo-container">
-                    <div class="logo-circle">
-                        <div class="inner-circle">ZH</div>
-                    </div>
-                    <div class="hospital-text">
+                    <img src="data:image/png;base64,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" 
+                            alt="ZH Hospital Logo" 
+                            style="width:67px; height:auto;" />
+                        <div class="hospital-text">
                         <div class="hospital-name">Zawar Hospital</div>
                         <div class="hospital-line"></div>
                     </div>
@@ -337,18 +366,22 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                         <tr>
                             <td>${index + 1})</td>
                             <td>${ward.displayName}</td>
-                            <td>${ward.bedCharges}</td>
-                            <td>${ward.doctorCharges}</td>
-                            <td>${ward.nursingCharges}</td>
-                            <td>${ward.asstDoctorCharges}</td>
-                            <td>${ward.totalPerDay}/day</td>
+                            <td>${formatChargeValue(ward.bedCharges)}</td>
+                            <td>${formatChargeValue(ward.doctorCharges)}</td>
+                            <td>${formatChargeValue(ward.nursingCharges)}</td>
+                            <td>${formatChargeValue(ward.asstDoctorCharges)}</td>
+                            <td>${formatChargeValue(ward.totalPerDay)}/day</td>
                             <td></td>
                             <td></td>
                         </tr>
                         `).join('')}
                     </tbody>
                 </table>
-                <div class="monitor-charges"><strong>Monitor- 1000/day &nbsp;&nbsp;&nbsp;&nbsp; O2- 1500/day</strong></div>
+                <div class="monitor-charges">
+                    <strong>Monitor- ${formatChargeValue(wardCharges?.monitorCharges)}/day &nbsp;&nbsp;&nbsp;&nbsp; O2- ${formatChargeValue(wardCharges?.o2Charges)}/day</strong><br>
+                    <strong>Syringe Pump- ${formatChargeValue(wardCharges?.syringePumpCharges)}/day &nbsp;&nbsp;&nbsp;&nbsp; Blood Transfusion- ${formatChargeValue(wardCharges?.bloodTransfusionCharges)}/day</strong><br>
+                    <strong>Visiting Charges- ${formatChargeValue(wardCharges?.visitingCharges)}/day</strong>
+                </div>
                 <div class="rates-section">Rates Applicable As Per Existing Hospital Schedule In Force</div>
                 <div class="signature-lines">
                     <div class="signature-row"><span>Name : _______________________________________</span></div>
@@ -361,11 +394,11 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                 <div class="appendix-header">परिशिष्ट "ब" -</div>
                 <div class="marathi-content">मी / आम्ही रुग्णावर दि. &nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp; / २० &nbsp;&nbsp;&nbsp; पासून दि. &nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp; / २० &nbsp;&nbsp;&nbsp; पर्यंत औषधोपचार करीत आहे / आहोत. आज रोजी घरी जाण्यास परवानगी देत आहोत.</div>
                 <div class="diagnosis-section" style="margin: 15px 0px;">
-                    <div style="margin-bottom: 10px;"><strong>Final Diagnosis</strong> ___________________________________________________________________________________________</div>
-                    <div style="margin-bottom: 10px;">_____________________________________________________________________________________________________________</div>
-                    <div style="margin-bottom: 10px;">_____________________________________________________________________________________________________________</div>
-                    <div style="margin-bottom: 10px;">_____________________________________________________________________________________________________________</div>
-                    <div style="margin-bottom: 10px;">_____________________________________________________________________________________________________________</div>
+                    <div style="margin-bottom: 10px;"><strong>Final Diagnosis</strong> ____________________________________________________________________________________________________________________</div>
+                    <div style="margin-bottom: 10px;">______________________________________________________________________________________________________________________________________</div>
+                    <div style="margin-bottom: 10px;">______________________________________________________________________________________________________________________________________</div>
+                    <div style="margin-bottom: 10px;">______________________________________________________________________________________________________________________________________</div>
+                    <div style="margin-bottom: 10px;">______________________________________________________________________________________________________________________________________</div>
                 </div>
                 <div class="marathi-content">
                     <div style="margin: 15px 0px;">

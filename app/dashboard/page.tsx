@@ -95,8 +95,8 @@ export default function DashboardPage() {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <img 
-                  src="/images/zawar-hospital-logo.svg" 
-                  alt="Zawar Hospital Logo" 
+                  src="/images/zh-logo.svg" 
+                  alt="ZH Hospital Logo" 
                   className="h-10 w-auto"
                 />
               </div>

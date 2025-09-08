@@ -47,6 +47,9 @@ export async function GET(
             totalPerDay: wardCharges.totalPerDay,
             monitorCharges: wardCharges.monitorCharges ?? undefined,
             o2Charges: wardCharges.o2Charges ?? undefined,
+            syringePumpCharges: wardCharges.syringePumpCharges ?? undefined,
+            bloodTransfusionCharges: wardCharges.bloodTransfusionCharges ?? undefined,
+            visitingCharges: wardCharges.visitingCharges ?? undefined,
           }
         : undefined,
     })

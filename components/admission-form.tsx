@@ -30,6 +30,9 @@ interface WardCharges {
   totalPerDay: number
   monitorCharges?: number
   o2Charges?: number
+  syringePumpCharges?: number
+  bloodTransfusionCharges?: number
+  visitingCharges?: number
 }
 
 const wardDisplayNames: Record<string, string> = {
@@ -219,9 +222,11 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
       {/* Header */}
       <div className="text-center mb-6 border-2 border-black p-4">
         <div className="flex items-center justify-center gap-4 mb-2">
-          <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
-            <span className="text-xl font-bold">ZH</span>
-          </div>
+          <img 
+            src="/images/zh-logo.svg" 
+            alt="ZH Hospital Logo" 
+            className="h-12 w-auto"
+          />
           <h1 className="text-2xl font-bold">{t.hospitalName}</h1>
         </div>
         <div className="bg-black text-white px-4 py-2 inline-block rounded">
@@ -589,9 +594,18 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
                 )}
               </tbody>
             </table>
-            <div className="p-2 border-t border-gray-400 flex justify-between">
-              <span>{t.monitor}- {currentCharges?.monitorCharges || 0}/day</span>
-              <span>{t.o2}- {currentCharges?.o2Charges || 0}/day</span>
+            <div className="p-2 border-t border-gray-400">
+              <div className="flex justify-between mb-1">
+                <span>{t.monitor}- {currentCharges?.monitorCharges || 0}/day</span>
+                <span>{t.o2}- {currentCharges?.o2Charges || 0}/day</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Syringe Pump- {currentCharges?.syringePumpCharges || 0}/day</span>
+                <span>Blood Transfusion- {currentCharges?.bloodTransfusionCharges || 0}/day</span>
+              </div>
+              <div className="text-center mt-1">
+                <span>Visiting Charges- {currentCharges?.visitingCharges || 0}/day</span>
+              </div>
             </div>
           </div>
         </div>

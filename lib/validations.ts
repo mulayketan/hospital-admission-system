@@ -84,6 +84,9 @@ export const admissionSchema = z.object({
   totalPerDay: z.number().min(0),
   monitorCharges: z.number().min(0).optional(),
   o2Charges: z.number().min(0).optional(),
+  syringePumpCharges: z.number().min(0).optional(),
+  bloodTransfusionCharges: z.number().min(0).optional(),
+  visitingCharges: z.number().min(0).optional(),
   finalDiagnosis: z.string().optional(),
   treatmentDetails: z.string().optional(),
 })
