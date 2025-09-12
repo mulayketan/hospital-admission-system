@@ -5,6 +5,16 @@ import fs from 'fs'
 import { formatDate, formatTimeWithAmPm } from './utils'
 import { WardChargesModel } from './sheets-models'
 
+// Cache for ward charges to avoid repeated API calls
+let wardChargesCache: any[] | null = null
+let cacheTimestamp: number = 0
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes in milliseconds
+
+// Browser instance caching for better performance
+let browserInstance: Browser | null = null
+let browserLastUsed: number = 0
+const BROWSER_TIMEOUT = 2 * 60 * 1000 // 2 minutes
+
 interface PatientWithMarathi {
   id: string
   ipdNo: string | null
@@ -65,14 +75,18 @@ const formatChargeValue = (value: number | string | null | undefined): string =>
   return value.toString()
 }
 
-export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerationOptions): Promise<Buffer> => {
+// Helper function to get cached ward charges or fetch fresh data
+const getCachedWardCharges = async () => {
+  const now = Date.now()
   
-  // Fetch ward charges from Google Sheets
+  // Return cached data if it's still fresh
+  if (wardChargesCache && (now - cacheTimestamp) < CACHE_DURATION) {
+    return wardChargesCache
+  }
+  
+  // Fetch fresh data and cache it
   const wardChargesFromSheets = await WardChargesModel.findMany()
-  console.log('Ward charges fetched from Google Sheets:', wardChargesFromSheets)
-  
-  // Map the ward charges to the format expected by the PDF with display names
-  const allWardCharges = wardChargesFromSheets.map(ward => ({
+  wardChargesCache = wardChargesFromSheets.map(ward => ({
     wardType: ward.wardType,
     displayName: wardDisplayNames[ward.wardType] || ward.wardType,
     bedCharges: ward.bedCharges,
@@ -81,13 +95,105 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
     asstDoctorCharges: ward.asstDoctorCharges,
     totalPerDay: ward.totalPerDay
   }))
-  console.log('Mapped ward charges for PDF:', allWardCharges)
+  cacheTimestamp = now
+  
+  return wardChargesCache
+}
+
+// Helper function to get or create browser instance
+const getBrowserInstance = async (): Promise<Browser> => {
+  const now = Date.now()
+  
+  // Check if we have a valid cached browser
+  if (browserInstance && (now - browserLastUsed) < BROWSER_TIMEOUT) {
+    try {
+      // Test if browser is still connected
+      await browserInstance.version()
+      browserLastUsed = now
+      return browserInstance
+    } catch {
+      // Browser is disconnected, close and recreate
+      try { await browserInstance.close() } catch {}
+      browserInstance = null
+    }
+  }
+  
+  // Create new browser instance
+  try {
+    browserInstance = await puppeteer.launch({
+      args: [
+        ...chromium.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ],
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: true,
+      ignoreHTTPSErrors: true,
+    })
+  } catch (err: any) {
+    const envPath = process.env.CHROME_EXECUTABLE_PATH
+    let localExecutablePath: string | undefined = envPath && fs.existsSync(envPath) ? envPath : undefined
+    if (!localExecutablePath) {
+      if (process.platform === 'darwin') {
+        const macCandidates = [
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+          '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        ]
+        localExecutablePath = macCandidates.find(p => fs.existsSync(p))
+      } else if (process.platform === 'win32') {
+        const winCandidates = [
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        ]
+        localExecutablePath = winCandidates.find(p => fs.existsSync(p))
+      } else {
+        const linuxCandidates = [
+          '/usr/bin/google-chrome',
+          '/usr/bin/chromium-browser',
+          '/usr/bin/chromium',
+        ]
+        localExecutablePath = linuxCandidates.find(p => fs.existsSync(p))
+      }
+    }
+    if (!localExecutablePath) {
+      throw new Error('Local Chrome executable not found. Set CHROME_EXECUTABLE_PATH or install Google Chrome.')
+    }
+    browserInstance = await puppeteer.launch({ 
+      executablePath: localExecutablePath, 
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]
+    })
+  }
+  
+  browserLastUsed = now
+  return browserInstance
+}
+
+export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerationOptions): Promise<Buffer> => {
+  
+  // Get ward charges (cached or fresh)
+  const allWardCharges = await getCachedWardCharges()
   
   // Fallback to static data if no ward charges found in Google Sheets
   if (allWardCharges.length === 0) {
     console.warn('No ward charges found in Google Sheets, using fallback static data')
     allWardCharges.push(
-      { wardType: 'GENERAL', displayName: 'G.W.', bedCharges: 800, doctorCharges: 400, nursingCharges: 300, asstDoctorCharges: 200, totalPerDay: 1700 },
+      { wardType: 'GENERAL', displayName: 'G.W.', bedCharges: 1000, doctorCharges: 400, nursingCharges: 300, asstDoctorCharges: 200, totalPerDay: 1700 },
       { wardType: 'SEMI', displayName: 'Semi', bedCharges: 1400, doctorCharges: 500, nursingCharges: 300, asstDoctorCharges: 300, totalPerDay: 2500 },
       { wardType: 'SPECIAL_WITHOUT_AC', displayName: 'Special without AC', bedCharges: 2200, doctorCharges: 600, nursingCharges: 400, asstDoctorCharges: 300, totalPerDay: 3500 },
       { wardType: 'SPECIAL_WITH_AC_DELUXE', displayName: 'Special with AC (Deluxe)', bedCharges: 2600, doctorCharges: 600, nursingCharges: 500, asstDoctorCharges: 300, totalPerDay: 4000 },
@@ -274,14 +380,14 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                 ${patient.cashless ? `
                 <tr>
                     <td class="label">
-                        <div>TPA</div>
-                    </td>
-                    <td class="value">${patient.tpa || ''}</td>
-                    <td class="label">
                         <div class="marathi-text">विमा कंपनी</div>
                         <div>Insurance Company</div>
                     </td>
-                    <td class="value" colspan="3">${patient.insuranceCompany || ''}</td>
+                    <td class="value">${patient.insuranceCompany || ''}</td>
+                    <td class="label">
+                        <div>TPA</div>
+                    </td>
+                    <td class="value" colspan="3">${patient.tpa || ''}</td>
                 </tr>
                 ` : ''}
                 <tr>
@@ -416,57 +522,30 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
 </html>
   `
 
-  // Adaptive launcher for local vs serverless
-  let browser: Browser | null = null
+  // Use cached browser instance for better performance
+  const browser = await getBrowserInstance()
+  const page = await browser.newPage()
+  
   try {
-    try {
-      browser = await puppeteer.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: true,
-        ignoreHTTPSErrors: true,
-      })
-    } catch (err: any) {
-      const envPath = process.env.CHROME_EXECUTABLE_PATH
-      let localExecutablePath: string | undefined = envPath && fs.existsSync(envPath) ? envPath : undefined
-      if (!localExecutablePath) {
-        if (process.platform === 'darwin') {
-          const macCandidates = [
-            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-            '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
-            '/Applications/Chromium.app/Contents/MacOS/Chromium',
-          ]
-          localExecutablePath = macCandidates.find(p => fs.existsSync(p))
-        } else if (process.platform === 'win32') {
-          const winCandidates = [
-            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-            'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-          ]
-          localExecutablePath = winCandidates.find(p => fs.existsSync(p))
-        } else {
-          const linuxCandidates = [
-            '/usr/bin/google-chrome',
-            '/usr/bin/chromium-browser',
-            '/usr/bin/chromium',
-          ]
-          localExecutablePath = linuxCandidates.find(p => fs.existsSync(p))
-        }
-      }
-      if (!localExecutablePath) {
-        throw new Error('Local Chrome executable not found. Set CHROME_EXECUTABLE_PATH or install Google Chrome.')
-      }
-      browser = await puppeteer.launch({ executablePath: localExecutablePath, headless: true })
-    }
-
-    const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'networkidle0' })
-    // Ensure web fonts are fully loaded before rendering
-    try { await page.evaluateHandle('document.fonts.ready') } catch {}
-
-    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' } })
+    // Optimize page settings for faster rendering
+    await page.setViewport({ width: 1200, height: 1600 })
+    
+    // Set content with faster wait condition
+    await page.setContent(html, { waitUntil: 'domcontentloaded' })
+    
+    // Wait for fonts to load (faster than networkidle0)
+    await page.evaluateHandle('document.fonts.ready').catch(() => {})
+    
+    // Generate PDF with optimized settings
+    const pdfBuffer = await page.pdf({ 
+      format: 'A4', 
+      printBackground: true, 
+      margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
+      timeout: 30000 // 30 second timeout
+    })
     return Buffer.from(pdfBuffer)
   } finally {
-    if (browser) await browser.close()
+    // Close only the page, keep browser alive for reuse
+    await page.close()
   }
 }

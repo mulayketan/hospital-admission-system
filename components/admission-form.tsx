@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { WorkingMarathiInput } from '@/components/ui/working-marathi-input'
 import { patientFormSchema, patientSchema, type PatientFormInput, type PatientInput } from '@/lib/validations'
 import { translations } from '@/lib/translations'
 import { convertFullNameToMarathi } from '@/lib/name-converter'
@@ -347,31 +346,34 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
           {/* Marathi Name Fields */}
           <div>
             <Label htmlFor="firstNameMarathi">First Name (मराठी)</Label>
-            <WorkingMarathiInput
+            <Input
               id="firstNameMarathi"
               {...register('firstNameMarathi')}
-              placeholder=""
-              onValueChange={(value) => setValue('firstNameMarathi', value)}
+              placeholder="First name in Marathi"
+              className="font-marathi"
+              style={{ fontFamily: 'Noto Sans Devanagari, Mangal, Shree Devanagari 714, sans-serif' }}
             />
           </div>
 
           <div>
             <Label htmlFor="middleNameMarathi">Middle Name (मराठी)</Label>
-            <WorkingMarathiInput
+            <Input
               id="middleNameMarathi"
               {...register('middleNameMarathi')}
-              placeholder=""
-              onValueChange={(value) => setValue('middleNameMarathi', value)}
+              placeholder="Middle name in Marathi"
+              className="font-marathi"
+              style={{ fontFamily: 'Noto Sans Devanagari, Mangal, Shree Devanagari 714, sans-serif' }}
             />
           </div>
 
           <div>
             <Label htmlFor="surnameMarathi">Surname (मराठी)</Label>
-            <WorkingMarathiInput
+            <Input
               id="surnameMarathi"
               {...register('surnameMarathi')}
-              placeholder=""
-              onValueChange={(value) => setValue('surnameMarathi', value)}
+              placeholder="Surname in Marathi"
+              className="font-marathi"
+              style={{ fontFamily: 'Noto Sans Devanagari, Mangal, Shree Devanagari 714, sans-serif' }}
             />
           </div>
 
@@ -493,29 +495,6 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
           {watch('cashless') && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <Label htmlFor="tpa">TPA *</Label>
-                <Select onValueChange={(value) => setValue('tpa', value)}>
-                  <SelectTrigger className={errors.tpa ? 'border-red-500' : ''}>
-                    <SelectValue placeholder="Select TPA" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {isLoadingDropdowns ? (
-                      <SelectItem value="loading" disabled>Loading TPAs...</SelectItem>
-                    ) : (
-                      tpaList.map((tpa) => (
-                        <SelectItem key={tpa.id} value={tpa.name}>
-                          {tpa.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                {errors.tpa && (
-                  <p className="text-red-500 text-sm mt-1">{errors.tpa.message}</p>
-                )}
-              </div>
-
-              <div>
                 <Label htmlFor="insuranceCompany">Insurance Company *</Label>
                 <Select onValueChange={(value) => setValue('insuranceCompany', value)}>
                   <SelectTrigger className={errors.insuranceCompany ? 'border-red-500' : ''}>
@@ -535,6 +514,29 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
                 </Select>
                 {errors.insuranceCompany && (
                   <p className="text-red-500 text-sm mt-1">{errors.insuranceCompany.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="tpa">TPA *</Label>
+                <Select onValueChange={(value) => setValue('tpa', value)}>
+                  <SelectTrigger className={errors.tpa ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select TPA" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingDropdowns ? (
+                      <SelectItem value="loading" disabled>Loading TPAs...</SelectItem>
+                    ) : (
+                      tpaList.map((tpa) => (
+                        <SelectItem key={tpa.id} value={tpa.name}>
+                          {tpa.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.tpa && (
+                  <p className="text-red-500 text-sm mt-1">{errors.tpa.message}</p>
                 )}
               </div>
             </div>
