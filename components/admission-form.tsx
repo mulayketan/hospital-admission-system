@@ -61,7 +61,8 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
     formState: { errors },
     setValue,
     watch,
-    reset
+    reset,
+    trigger
   } = useForm<PatientFormInput>({
     resolver: zodResolver(patientFormSchema),
     defaultValues: {
@@ -185,7 +186,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
     }
   }
 
-  const handleSelectPatient = (patient: PatientInput) => {
+  const handleSelectPatient = async (patient: PatientInput) => {
     // Convert PatientInput to PatientFormInput for the form
     const formData: PatientFormInput = {
       ...patient,
@@ -197,6 +198,11 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
     reset(formData)
     setSearchResults([])
     setSearchQuery('')
+    
+    // Re-trigger validation after form reset
+    setTimeout(() => {
+      trigger()
+    }, 100)
   }
 
   const handleFormSubmit = async (data: PatientFormInput) => {
@@ -440,7 +446,9 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
 
           <div>
             <Label htmlFor="sex">{t.sex}</Label>
-            <Select onValueChange={(value) => setValue('sex', value as 'M' | 'F')}>
+            <Select 
+              value={watch('sex')} 
+              onValueChange={(value) => setValue('sex', value as 'M' | 'F')}>
               <SelectTrigger className={errors.sex ? 'border-red-500' : ''}>
                 <SelectValue placeholder={`${t.sex} : ${t.male} / ${t.female}`} />
               </SelectTrigger>
@@ -460,10 +468,12 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <Label htmlFor="ward">{t.ward}</Label>
-              <Select onValueChange={(value) => {
-                setValue('ward', value as 'GENERAL' | 'SEMI' | 'SPECIAL_WITHOUT_AC' | 'SPECIAL_WITH_AC_DELUXE' | 'ICU')
-                setSelectedWard(value)
-              }}>
+              <Select 
+                value={watch('ward')} 
+                onValueChange={(value) => {
+                  setValue('ward', value as 'GENERAL' | 'SEMI' | 'SPECIAL_WITHOUT_AC' | 'SPECIAL_WITH_AC_DELUXE' | 'ICU')
+                  setSelectedWard(value)
+                }}>
                 <SelectTrigger className={errors.ward ? 'border-red-500' : ''}>
                   <SelectValue placeholder="Select ward type" />
                 </SelectTrigger>
@@ -496,7 +506,9 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <Label htmlFor="insuranceCompany">Insurance Company *</Label>
-                <Select onValueChange={(value) => setValue('insuranceCompany', value)}>
+                <Select 
+                  value={watch('insuranceCompany') || ''} 
+                  onValueChange={(value) => setValue('insuranceCompany', value)}>
                   <SelectTrigger className={errors.insuranceCompany ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select Insurance Company" />
                   </SelectTrigger>
@@ -519,7 +531,9 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
 
               <div>
                 <Label htmlFor="tpa">TPA *</Label>
-                <Select onValueChange={(value) => setValue('tpa', value)}>
+                <Select 
+                  value={watch('tpa') || ''} 
+                  onValueChange={(value) => setValue('tpa', value)}>
                   <SelectTrigger className={errors.tpa ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select TPA" />
                   </SelectTrigger>
