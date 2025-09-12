@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { patientFormSchema, patientSchema, type PatientFormInput, type PatientInput } from '@/lib/validations'
 import { translations } from '@/lib/translations'
-import { convertFullNameToMarathi } from '@/lib/name-converter'
 
 interface AdmissionFormProps {
   language: 'en' | 'mr'
@@ -147,30 +146,6 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
     fetchDropdownData()
   }, [])
 
-  // Auto-convert English names to Marathi
-  const firstName = watch('firstName')
-  const middleName = watch('middleName')
-  const surname = watch('surname')
-
-  useEffect(() => {
-    if (firstName || middleName || surname) {
-      const marathiNames = convertFullNameToMarathi(firstName, middleName || '', surname)
-      // Only set if the Marathi fields are empty (don't overwrite user input)
-      const currentFirstMarathi = watch('firstNameMarathi')
-      const currentMiddleMarathi = watch('middleNameMarathi')
-      const currentSurnameMarathi = watch('surnameMarathi')
-      
-      if (!currentFirstMarathi && marathiNames.firstNameMarathi) {
-        setValue('firstNameMarathi', marathiNames.firstNameMarathi)
-      }
-      if (!currentMiddleMarathi && marathiNames.middleNameMarathi) {
-        setValue('middleNameMarathi', marathiNames.middleNameMarathi)
-      }
-      if (!currentSurnameMarathi && marathiNames.surnameMarathi) {
-        setValue('surnameMarathi', marathiNames.surnameMarathi)
-      }
-    }
-  }, [firstName, middleName, surname, setValue, watch])
 
   const handleSearchPatient = async (query: string) => {
     if (!onSearch || query.length < 2) {
