@@ -28,12 +28,20 @@ export const patientFormSchema = z.object({
   timeOfDischarge: z.string().nullable().optional().transform(val => val ?? null),
 }).refine((data) => {
   if (data.cashless) {
-    return data.tpa && data.insuranceCompany;
+    return data.tpa;
   }
   return true;
 }, {
-  message: "TPA and Insurance Company are required when Cashless is selected",
+  message: "TPA is required when Cashless is selected",
   path: ["tpa"]
+}).refine((data) => {
+  if (data.cashless) {
+    return data.insuranceCompany;
+  }
+  return true;
+}, {
+  message: "Insurance Company is required when Cashless is selected",
+  path: ["insuranceCompany"]
 })
 
 // Schema with transforms for API processing
@@ -64,12 +72,20 @@ export const patientSchema = z.object({
   timeOfDischarge: z.string().nullable().optional().transform(val => val ?? null),
 }).refine((data) => {
   if (data.cashless) {
-    return data.tpa && data.insuranceCompany;
+    return data.tpa;
   }
   return true;
 }, {
-  message: "TPA and Insurance Company are required when Cashless is selected",
+  message: "TPA is required when Cashless is selected",
   path: ["tpa"]
+}).refine((data) => {
+  if (data.cashless) {
+    return data.insuranceCompany;
+  }
+  return true;
+}, {
+  message: "Insurance Company is required when Cashless is selected",
+  path: ["insuranceCompany"]
 })
 
 export const admissionSchema = z.object({
