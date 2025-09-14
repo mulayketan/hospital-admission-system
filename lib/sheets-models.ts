@@ -26,9 +26,9 @@ export interface Patient {
   firstName: string
   middleName: string | null
   surname: string
-  firstNameMarathi: string
+  firstNameMarathi: string | null
   middleNameMarathi: string | null
-  surnameMarathi: string
+  surnameMarathi: string | null
   phoneNo: string
   age: number
   sex: 'M' | 'F'
@@ -417,9 +417,9 @@ export class PatientModel {
       patient.firstName,
       patient.middleName || '',
       patient.surname,
-      patient.firstNameMarathi,
+      patient.firstNameMarathi || '',
       patient.middleNameMarathi || '',
-      patient.surnameMarathi,
+      patient.surnameMarathi || '',
       patient.phoneNo,
       patient.age.toString(),
       patient.sex,

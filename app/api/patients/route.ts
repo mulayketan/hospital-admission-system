@@ -65,9 +65,9 @@ export async function POST(request: NextRequest) {
       ipdNo: validatedData.ipdNo, // Use the user-provided IPD number
       dateOfAdmission: validatedData.dateOfAdmission.toISOString(),
       dateOfDischarge: validatedData.dateOfDischarge ? validatedData.dateOfDischarge.toISOString() : null,
-      firstNameMarathi: validatedData.firstNameMarathi || '',
-      middleNameMarathi: validatedData.middleNameMarathi || '',
-      surnameMarathi: validatedData.surnameMarathi || '',
+      firstNameMarathi: validatedData.firstNameMarathi,
+      middleNameMarathi: validatedData.middleNameMarathi,
+      surnameMarathi: validatedData.surnameMarathi,
     })
 
     return NextResponse.json({
