@@ -331,7 +331,6 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
               id="firstNameMarathi"
               {...register('firstNameMarathi')}
               placeholder="First name in Marathi"
-              className="font-marathi"
               style={{ fontFamily: 'Noto Sans Devanagari, Mangal, Shree Devanagari 714, sans-serif' }}
             />
           </div>
@@ -342,7 +341,6 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
               id="middleNameMarathi"
               {...register('middleNameMarathi')}
               placeholder="Middle name in Marathi"
-              className="font-marathi"
               style={{ fontFamily: 'Noto Sans Devanagari, Mangal, Shree Devanagari 714, sans-serif' }}
             />
           </div>
@@ -353,7 +351,6 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
               id="surnameMarathi"
               {...register('surnameMarathi')}
               placeholder="Surname in Marathi"
-              className="font-marathi"
               style={{ fontFamily: 'Noto Sans Devanagari, Mangal, Shree Devanagari 714, sans-serif' }}
             />
           </div>
