@@ -235,15 +235,16 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
     <style>
-      /* Embedded Devanagari font for reliable rendering in serverless environments */
-      @font-face {
-        font-family: 'DevanagariFont';
-        src: url('/fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
-        font-display: swap;
-        
+      /* Import Google Fonts directly for reliability */
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap');
+      
+      /* Comprehensive font fallback system for Devanagari */
+      .marathi-text, .devanagari {
+        font-family: 'Noto Sans Devanagari', 'Mangal', 'Kokila', 'Utsaah', 'Aparajita', 'Sanskrit Text', 'Devanagari Sangam MN', 'Shree Devanagari 714', system-ui, sans-serif !important;
         font-weight: normal;
-        font-style: normal;
-        unicode-range: U+0900-097F, U+1CD0-1CFF, U+200C-200D, U+20A8, U+20B9, U+25CC, U+A830-A839, U+A8E0-A8FF;
+        font-variant-ligatures: normal;
+        font-feature-settings: normal;
+        text-rendering: optimizeLegibility;
       }
     </style>
     <style>
@@ -253,7 +254,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'DevanagariFont', 'Noto Sans Devanagari', 'Noto Sans', 'Mangal', 'Shree Devanagari 714', 'Kokila', 'Utsaah', Arial, sans-serif;
+            font-family: 'Noto Sans Devanagari', 'Noto Sans', 'Mangal', 'Shree Devanagari 714', 'Kokila', 'Utsaah', Arial, sans-serif;
             font-size: 11px;
             line-height: 1.2;
             color: #000;
@@ -261,9 +262,11 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
             -moz-osx-font-smoothing: grayscale;
         }
         .marathi-text, .marathi-content {
-            font-family: 'DevanagariFont', 'Noto Sans Devanagari', 'Mangal', 'Shree Devanagari 714', 'Kokila', 'Utsaah', 'Noto Sans', Arial, sans-serif;
+            font-family: 'Noto Sans Devanagari', 'Mangal', 'Shree Devanagari 714', 'Kokila', 'Utsaah', 'Noto Sans', Arial, sans-serif !important;
             direction: ltr;
             unicode-bidi: normal;
+            font-weight: normal;
+            text-rendering: optimizeLegibility;
         }
         .container { width: 100%; max-width: 190mm; margin: 0 auto; border: 2px solid #000; padding: 10px; background: white; }
         /* Header Section */
@@ -576,10 +579,39 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
     await page.setContent(html, { waitUntil: 'domcontentloaded' })
     console.log('HTML content loaded successfully')
     
-    // Wait for fonts to load (faster than networkidle0)
+    // Wait for fonts to load with aggressive strategy
     console.log('Waiting for fonts to load...')
-    await page.evaluateHandle('document.fonts.ready').catch(() => {})
-    console.log('document.fonts.ready completed')
+    
+    // Force load Google Fonts and wait for completion
+    await page.evaluate(() => {
+      return new Promise((resolve) => {
+        // Create a more robust font loading mechanism
+        const fontFaces = [
+          new FontFace('Noto Sans Devanagari', 'url(https://fonts.gstatic.com/s/notosansdevanagari/v25/TuGoUUFzXI5FBtUq5a8bjKYTZjtRU6Sgv3NaV_ufkZBVZpoQf8JXZ_Uw.woff2)'),
+        ]
+        
+        const fontPromises = fontFaces.map(fontFace => {
+          document.fonts.add(fontFace)
+          return fontFace.load()
+        })
+        
+        Promise.all(fontPromises)
+          .then(() => document.fonts.ready)
+          .then(() => {
+            // Extra verification wait
+            setTimeout(resolve, 500)
+          })
+          .catch(() => {
+            // Fallback - just wait for document fonts
+            document.fonts.ready.then(() => setTimeout(resolve, 500))
+          })
+        
+        // Ultimate fallback
+        setTimeout(resolve, 3000)
+      })
+    })
+    
+    console.log('Google Fonts loading completed')
     
     // Check available fonts and font loading status
     const fontInfo = await page.evaluate(() => {
@@ -593,7 +625,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
       // Check if our embedded font is available
       const testDiv = document.createElement('div')
       testDiv.innerHTML = 'अविकिरण बाळासाहेब खेळे'
-      testDiv.style.fontFamily = "'DevanagariFont', 'Noto Sans Devanagari', 'Mangal'"
+      testDiv.style.fontFamily = "'Noto Sans Devanagari', 'Mangal', 'Shree Devanagari 714'"
       testDiv.style.fontSize = '16px'
       testDiv.style.position = 'absolute'
       testDiv.style.top = '-1000px'
