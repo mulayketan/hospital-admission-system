@@ -121,9 +121,7 @@ const getBrowserInstance = async (): Promise<Browser> => {
   
   // Create new browser instance
   try {
-    console.log('Launching Chromium with font support args...')
     const executablePath = await chromium.executablePath()
-    console.log('Chromium executable path:', executablePath)
     
     const launchArgs = [
       ...chromium.args,
@@ -140,7 +138,6 @@ const getBrowserInstance = async (): Promise<Browser> => {
       '--force-color-profile=srgb',
       '--disable-features=VizDisplayCompositor'
     ]
-    console.log('Launch args:', launchArgs)
     
     browserInstance = await puppeteer.launch({
       args: launchArgs,
@@ -149,7 +146,6 @@ const getBrowserInstance = async (): Promise<Browser> => {
       headless: true,
       ignoreHTTPSErrors: true,
     })
-    console.log('Chromium launched successfully')
   } catch (err: any) {
     const envPath = process.env.CHROME_EXECUTABLE_PATH
     let localExecutablePath: string | undefined = envPath && fs.existsSync(envPath) ? envPath : undefined
@@ -203,13 +199,6 @@ const getBrowserInstance = async (): Promise<Browser> => {
 }
 
 export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerationOptions): Promise<Buffer> => {
-  console.log('=== PDF GENERATION DEBUG START ===')
-  console.log('Patient Marathi names:', {
-    firstNameMarathi: patient.firstNameMarathi,
-    middleNameMarathi: patient.middleNameMarathi,
-    surnameMarathi: patient.surnameMarathi
-  })
-  
   // Get ward charges (cached or fresh)
   const allWardCharges = await getCachedWardCharges()
   
@@ -567,25 +556,18 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
 </html>
   `
 
-  // Log HTML content for debugging (first 1000 chars of Marathi content)
-  const marathiContentMatch = html.match(/firstNameMarathi[\s\S]*?surnameMarathi[\s\S]{0,200}/)
-  console.log('HTML Marathi content sample:', marathiContentMatch ? marathiContentMatch[0] : 'Not found')
-  
   // Use cached browser instance for better performance
   const browser = await getBrowserInstance()
   const page = await browser.newPage()
   
   try {
-    console.log('Setting page viewport and content...')
     // Optimize page settings for faster rendering
     await page.setViewport({ width: 1200, height: 1600 })
     
     // Set content with faster wait condition
     await page.setContent(html, { waitUntil: 'domcontentloaded' })
-    console.log('HTML content loaded successfully')
     
     // Wait for fonts to load with aggressive strategy
-    console.log('Waiting for fonts to load...')
     
     // Force load Google Fonts and wait for completion
     await page.evaluate(() => {
@@ -616,84 +598,15 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
       })
     })
     
-    console.log('Google Fonts loading completed')
-    
-    // Check available fonts and font loading status
-    const fontInfo = await page.evaluate(() => {
-      const fonts = Array.from(document.fonts.values()).map(font => ({
-        family: font.family,
-        status: font.status,
-        style: font.style,
-        weight: font.weight
-      }))
-      
-      // Check if our embedded font is available
-      const testDiv = document.createElement('div')
-      testDiv.innerHTML = 'अविकिरण बाळासाहेब खेळे'
-      testDiv.style.fontFamily = "'Noto Sans Devanagari', 'Mangal', 'Shree Devanagari 714'"
-      testDiv.style.fontSize = '16px'
-      testDiv.style.position = 'absolute'
-      testDiv.style.top = '-1000px'
-      document.body.appendChild(testDiv)
-      
-      const computedStyle = window.getComputedStyle(testDiv)
-      const actualFont = computedStyle.fontFamily
-      const textContent = testDiv.textContent
-      
-      document.body.removeChild(testDiv)
-      
-      return {
-        availableFonts: fonts,
-        actualFontUsed: actualFont,
-        testText: textContent,
-        fontCount: fonts.length
-      }
-    })
-    
-    console.log('Font debugging info:', fontInfo)
-    
-    // Additional wait for Devanagari fonts to ensure proper rendering
-    await page.evaluate(() => {
-      return new Promise<void>((resolve) => {
-        const testDiv = document.createElement('div')
-        testDiv.innerHTML = 'अविकिरण बाळासाहेब खेळे'
-        testDiv.style.fontFamily = "'DevanagariFont', 'Noto Sans Devanagari', 'Mangal', 'Shree Devanagari 714'"
-        testDiv.style.visibility = 'hidden'
-        testDiv.style.position = 'absolute'
-        document.body.appendChild(testDiv)
-        
-        // Give fonts time to load
-        setTimeout(() => {
-          document.body.removeChild(testDiv)
-          resolve()
-        }, 200)
-      })
-    })
-    console.log('Font loading wait completed')
-    
-    // Final check - capture the actual rendered content with Marathi text
-    const marathiTextCheck = await page.evaluate(() => {
-      const marathiElements = Array.from(document.querySelectorAll('[class*="marathi"], [style*="Devanagari"]'))
-      return marathiElements.map(el => ({
-        tagName: el.tagName,
-        className: el.className,
-        textContent: el.textContent?.substring(0, 100),
-        computedFont: window.getComputedStyle(el).fontFamily
-      }))
-    })
-    
-    console.log('Marathi text elements in DOM:', marathiTextCheck)
     
     // Generate PDF with optimized settings
-    console.log('Starting PDF generation...')
     const pdfBuffer = await page.pdf({ 
       format: 'A4', 
       printBackground: true, 
       margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
       timeout: 30000 // 30 second timeout
     })
-    console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes')
-    console.log('=== PDF GENERATION DEBUG END ===')
+    
     return Buffer.from(pdfBuffer)
   } finally {
     // Close only the page, keep browser alive for reuse
