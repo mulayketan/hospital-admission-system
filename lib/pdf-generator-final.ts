@@ -120,27 +120,35 @@ const getBrowserInstance = async (): Promise<Browser> => {
   
   // Create new browser instance
   try {
+    console.log('Launching Chromium with font support args...')
+    const executablePath = await chromium.executablePath()
+    console.log('Chromium executable path:', executablePath)
+    
+    const launchArgs = [
+      ...chromium.args,
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
+      '--disable-web-security',
+      '--font-render-hinting=none',
+      '--enable-font-antialiasing',
+      '--force-color-profile=srgb',
+      '--disable-features=VizDisplayCompositor'
+    ]
+    console.log('Launch args:', launchArgs)
+    
     browserInstance = await puppeteer.launch({
-      args: [
-        ...chromium.args,
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        '--disable-web-security',
-        '--font-render-hinting=none',
-        '--enable-font-antialiasing',
-        '--force-color-profile=srgb',
-        '--disable-features=VizDisplayCompositor'
-      ],
+      args: launchArgs,
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath: executablePath,
       headless: true,
       ignoreHTTPSErrors: true,
     })
+    console.log('Chromium launched successfully')
   } catch (err: any) {
     const envPath = process.env.CHROME_EXECUTABLE_PATH
     let localExecutablePath: string | undefined = envPath && fs.existsSync(envPath) ? envPath : undefined
@@ -194,6 +202,12 @@ const getBrowserInstance = async (): Promise<Browser> => {
 }
 
 export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerationOptions): Promise<Buffer> => {
+  console.log('=== PDF GENERATION DEBUG START ===')
+  console.log('Patient Marathi names:', {
+    firstNameMarathi: patient.firstNameMarathi,
+    middleNameMarathi: patient.middleNameMarathi,
+    surnameMarathi: patient.surnameMarathi
+  })
   
   // Get ward charges (cached or fresh)
   const allWardCharges = await getCachedWardCharges()
@@ -203,10 +217,10 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
     console.warn('No ward charges found in Google Sheets, using fallback static data')
     allWardCharges.push(
       { wardType: 'GENERAL', displayName: 'G.W.', bedCharges: 1000, doctorCharges: 400, nursingCharges: 300, asstDoctorCharges: 200, totalPerDay: 1700 },
-      { wardType: 'SEMI', displayName: 'Semi', bedCharges: 1400, doctorCharges: 500, nursingCharges: 300, asstDoctorCharges: 300, totalPerDay: 2500 },
-      { wardType: 'SPECIAL_WITHOUT_AC', displayName: 'Special without AC', bedCharges: 2200, doctorCharges: 600, nursingCharges: 400, asstDoctorCharges: 300, totalPerDay: 3500 },
-      { wardType: 'SPECIAL_WITH_AC_DELUXE', displayName: 'Special with AC (Deluxe)', bedCharges: 2600, doctorCharges: 600, nursingCharges: 500, asstDoctorCharges: 300, totalPerDay: 4000 },
-      { wardType: 'ICU', displayName: 'ICU', bedCharges: 2000, doctorCharges: 700, nursingCharges: 600, asstDoctorCharges: 400, totalPerDay: 3700 }
+    { wardType: 'SEMI', displayName: 'Semi', bedCharges: 1400, doctorCharges: 500, nursingCharges: 300, asstDoctorCharges: 300, totalPerDay: 2500 },
+    { wardType: 'SPECIAL_WITHOUT_AC', displayName: 'Special without AC', bedCharges: 2200, doctorCharges: 600, nursingCharges: 400, asstDoctorCharges: 300, totalPerDay: 3500 },
+    { wardType: 'SPECIAL_WITH_AC_DELUXE', displayName: 'Special with AC (Deluxe)', bedCharges: 2600, doctorCharges: 600, nursingCharges: 500, asstDoctorCharges: 300, totalPerDay: 4000 },
+    { wardType: 'ICU', displayName: 'ICU', bedCharges: 2000, doctorCharges: 700, nursingCharges: 600, asstDoctorCharges: 400, totalPerDay: 3700 }
     )
   }
   
@@ -225,6 +239,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
       @font-face {
         font-family: 'DevanagariFont';
         src: url('data:font/woff2;charset=utf-8;base64,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') format('woff2');
+        
         font-weight: normal;
         font-style: normal;
         unicode-range: U+0900-097F, U+1CD0-1CFF, U+200C-200D, U+20A8, U+20B9, U+25CC, U+A830-A839, U+A8E0-A8FF;
@@ -310,7 +325,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
             <div class="logo-section">
                 <div class="logo-container">
                     <img src="data:image/png;base64,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" 
-                            alt="ZH Hospital Logo" 
+                        alt="ZH Hospital Logo" 
                             style="width:67px; height:auto;" />
                         <div class="hospital-text">
                         <div class="hospital-name">Zawar Hospital</div>
@@ -543,19 +558,61 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
 </html>
   `
 
+  // Log HTML content for debugging (first 1000 chars of Marathi content)
+  const marathiContentMatch = html.match(/firstNameMarathi[\s\S]*?surnameMarathi[\s\S]{0,200}/)
+  console.log('HTML Marathi content sample:', marathiContentMatch ? marathiContentMatch[0] : 'Not found')
+  
   // Use cached browser instance for better performance
   const browser = await getBrowserInstance()
   const page = await browser.newPage()
   
   try {
+    console.log('Setting page viewport and content...')
     // Optimize page settings for faster rendering
     await page.setViewport({ width: 1200, height: 1600 })
     
     // Set content with faster wait condition
     await page.setContent(html, { waitUntil: 'domcontentloaded' })
+    console.log('HTML content loaded successfully')
     
     // Wait for fonts to load (faster than networkidle0)
+    console.log('Waiting for fonts to load...')
     await page.evaluateHandle('document.fonts.ready').catch(() => {})
+    console.log('document.fonts.ready completed')
+    
+    // Check available fonts and font loading status
+    const fontInfo = await page.evaluate(() => {
+      const fonts = Array.from(document.fonts.values()).map(font => ({
+        family: font.family,
+        status: font.status,
+        style: font.style,
+        weight: font.weight
+      }))
+      
+      // Check if our embedded font is available
+      const testDiv = document.createElement('div')
+      testDiv.innerHTML = 'अविकिरण बाळासाहेब खेळे'
+      testDiv.style.fontFamily = "'DevanagariFont', 'Noto Sans Devanagari', 'Mangal'"
+      testDiv.style.fontSize = '16px'
+      testDiv.style.position = 'absolute'
+      testDiv.style.top = '-1000px'
+      document.body.appendChild(testDiv)
+      
+      const computedStyle = window.getComputedStyle(testDiv)
+      const actualFont = computedStyle.fontFamily
+      const textContent = testDiv.textContent
+      
+      document.body.removeChild(testDiv)
+      
+      return {
+        availableFonts: fonts,
+        actualFontUsed: actualFont,
+        testText: textContent,
+        fontCount: fonts.length
+      }
+    })
+    
+    console.log('Font debugging info:', fontInfo)
     
     // Additional wait for Devanagari fonts to ensure proper rendering
     await page.evaluate(() => {
@@ -571,17 +628,34 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         setTimeout(() => {
           document.body.removeChild(testDiv)
           resolve()
-        }, 100)
+        }, 200)
       })
     })
+    console.log('Font loading wait completed')
+    
+    // Final check - capture the actual rendered content with Marathi text
+    const marathiTextCheck = await page.evaluate(() => {
+      const marathiElements = Array.from(document.querySelectorAll('[class*="marathi"], [style*="Devanagari"]'))
+      return marathiElements.map(el => ({
+        tagName: el.tagName,
+        className: el.className,
+        textContent: el.textContent?.substring(0, 100),
+        computedFont: window.getComputedStyle(el).fontFamily
+      }))
+    })
+    
+    console.log('Marathi text elements in DOM:', marathiTextCheck)
     
     // Generate PDF with optimized settings
+    console.log('Starting PDF generation...')
     const pdfBuffer = await page.pdf({ 
       format: 'A4', 
       printBackground: true, 
       margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
       timeout: 30000 // 30 second timeout
     })
+    console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes')
+    console.log('=== PDF GENERATION DEBUG END ===')
     return Buffer.from(pdfBuffer)
   } finally {
     // Close only the page, keep browser alive for reuse
