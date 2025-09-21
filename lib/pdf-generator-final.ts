@@ -129,7 +129,12 @@ const getBrowserInstance = async (): Promise<Browser> => {
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-web-security',
+        '--font-render-hinting=none',
+        '--enable-font-antialiasing',
+        '--force-color-profile=srgb',
+        '--disable-features=VizDisplayCompositor'
       ],
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
@@ -175,7 +180,11 @@ const getBrowserInstance = async (): Promise<Browser> => {
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-web-security',
+        '--font-render-hinting=none',
+        '--enable-font-antialiasing',
+        '--force-color-profile=srgb'
       ]
     })
   }
@@ -212,13 +221,23 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
     <style>
+      /* Force font loading with data URIs for critical Devanagari characters */
+      @font-face {
+        font-family: 'DevanagariUnicode';
+        src: url('data:font/woff2;charset=utf-8;base64,') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+        unicode-range: U+0900-097F, U+1CD0-1CFF, U+200C-200D, U+20A8, U+20B9, U+25CC, U+A830-A839, U+A8E0-A8FF;
+      }
+    </style>
+    <style>
         @page {
             margin: 15mm 10mm;
             size: A4;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Noto Sans', 'Noto Sans Devanagari', Arial, sans-serif;
+            font-family: 'Noto Sans', 'Noto Sans Devanagari', 'DevanagariUnicode', 'Mangal', 'Shree Devanagari 714', 'Kokila', 'Utsaah', Arial, sans-serif;
             font-size: 11px;
             line-height: 1.2;
             color: #000;
@@ -226,7 +245,9 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
             -moz-osx-font-smoothing: grayscale;
         }
         .marathi-text, .marathi-content {
-            font-family: 'Noto Sans Devanagari', 'Noto Sans', Arial, sans-serif;
+            font-family: 'Noto Sans Devanagari', 'DevanagariUnicode', 'Mangal', 'Shree Devanagari 714', 'Kokila', 'Utsaah', 'Noto Sans', Arial, sans-serif;
+            direction: ltr;
+            unicode-bidi: normal;
         }
         .container { width: 100%; max-width: 190mm; margin: 0 auto; border: 2px solid #000; padding: 10px; background: white; }
         /* Header Section */
@@ -535,6 +556,24 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
     
     // Wait for fonts to load (faster than networkidle0)
     await page.evaluateHandle('document.fonts.ready').catch(() => {})
+    
+    // Additional wait for Devanagari fonts to ensure proper rendering
+    await page.evaluate(() => {
+      return new Promise<void>((resolve) => {
+        const testDiv = document.createElement('div')
+        testDiv.innerHTML = 'अविकिरण बाळासाहेब खेळे'
+        testDiv.style.fontFamily = "'Noto Sans Devanagari', 'Mangal', 'Shree Devanagari 714'"
+        testDiv.style.visibility = 'hidden'
+        testDiv.style.position = 'absolute'
+        document.body.appendChild(testDiv)
+        
+        // Give fonts time to load
+        setTimeout(() => {
+          document.body.removeChild(testDiv)
+          resolve()
+        }, 100)
+      })
+    })
     
     // Generate PDF with optimized settings
     const pdfBuffer = await page.pdf({ 
