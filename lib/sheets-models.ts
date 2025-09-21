@@ -23,6 +23,7 @@ export interface User {
 export interface Patient {
   id: string
   ipdNo: string | null
+  uhidNo: string | null
   firstName: string
   middleName: string | null
   surname: string
@@ -382,6 +383,7 @@ export class PatientModel {
     return {
       id: patient.id,
       ipdNo: patient.ipdNo,
+      uhidNo: patient.uhidNo,
       firstName: patient.firstName,
       middleName: patient.middleName,
       surname: patient.surname,
@@ -414,6 +416,7 @@ export class PatientModel {
     return [
       patient.id,
       patient.ipdNo || '',
+      patient.uhidNo || '',
       patient.firstName,
       patient.middleName || '',
       patient.surname,

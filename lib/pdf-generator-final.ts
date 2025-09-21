@@ -18,6 +18,7 @@ const BROWSER_TIMEOUT = 2 * 60 * 1000 // 2 minutes
 interface PatientWithMarathi {
   id: string
   ipdNo: string | null
+  uhidNo: string | null
   firstName: string
   middleName: string | null
   surname: string
@@ -278,7 +279,8 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         .hospital-name { font-size: 19px; font-weight: bold; line-height: 1.1; margin-bottom: 3px; }
         .hospital-line { width: 120px; height: 2px; background: #000; }
         .registration-badge { background: #000; color: white; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 13px; position: absolute; left: 50%; transform: translateX(-50%); }
-        .ipd-box { border: 1px solid #000; padding: 6px 10px; text-align: center; font-weight: bold; min-width: 70px; font-size: 12px; line-height: 1.1; }
+        .id-boxes { display: flex; gap: 10px; }
+        .ipd-box, .uhid-box { border: 1px solid #000; padding: 6px 10px; text-align: center; font-weight: bold; min-width: 70px; font-size: 12px; line-height: 1.1; }
         /* Patient Information Table */
         .patient-info { margin: 12px 0; clear: both; }
         .info-table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
@@ -338,7 +340,10 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
                 </div>
             </div>
             <div class="registration-badge">REGISTRATION CUM ADMISSION</div>
+            <div class="id-boxes">
             <div class="ipd-box">IPD No.<br>${patient.ipdNo || 'TBD'}</div>
+                <div class="uhid-box">UHID No.<br>${patient.uhidNo || 'TBD'}</div>
+            </div>
         </div>
         
         <!-- Patient Information -->

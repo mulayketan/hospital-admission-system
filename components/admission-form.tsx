@@ -66,6 +66,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
     resolver: zodResolver(patientFormSchema),
     defaultValues: {
       ipdNo: initialData?.ipdNo || '',
+      uhidNo: initialData?.uhidNo || '',
       firstName: initialData?.firstName || '',
       middleName: initialData?.middleName || null,
       surname: initialData?.surname || '',
@@ -212,9 +213,12 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
         <div className="bg-black text-white px-4 py-2 inline-block rounded">
           {t.registrationAdmission}
         </div>
-        <div className="mt-2 text-right">
+        <div className="mt-2 text-right space-x-4">
           <span className="border border-black px-2 py-1">
             {t.ipdNo}: {watch('ipdNo') || '___________'}
+          </span>
+          <span className="border border-black px-2 py-1">
+            {t.uhidNo}: {watch('uhidNo') || '___________'}
           </span>
         </div>
       </div>
@@ -272,7 +276,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
 
       {/* Form */}
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-        {/* IPD Number */}
+        {/* IPD and UHID Numbers */}
         <div className="p-4 border border-gray-300">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -285,6 +289,18 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
               />
               {errors.ipdNo && (
                 <p className="text-red-500 text-sm mt-1">{errors.ipdNo.message}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="uhidNo">{t.uhidNo}</Label>
+              <Input
+                id="uhidNo"
+                {...register('uhidNo')}
+                className={errors.uhidNo ? 'border-red-500' : ''}
+                placeholder="Enter UHID Number"
+              />
+              {errors.uhidNo && (
+                <p className="text-red-500 text-sm mt-1">{errors.uhidNo.message}</p>
               )}
             </div>
           </div>

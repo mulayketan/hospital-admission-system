@@ -3,6 +3,7 @@ import { z } from 'zod'
 // Raw form schema without transforms for form input
 export const patientFormSchema = z.object({
   ipdNo: z.string().min(1, 'IPD Number is required'),
+  uhidNo: z.string().nullable().optional().transform(val => val ?? null),
   firstName: z.string().min(1, 'First name is required'),
   middleName: z.string().nullable().optional().transform(val => val ?? null),
   surname: z.string().min(1, 'Surname is required'),
@@ -47,6 +48,7 @@ export const patientFormSchema = z.object({
 // Schema with transforms for API processing
 export const patientSchema = z.object({
   ipdNo: z.string().min(1, 'IPD Number is required'),
+  uhidNo: z.string().nullable().optional().transform(val => val ?? null),
   firstName: z.string().min(1, 'First name is required'),
   middleName: z.string().nullable().optional().transform(val => val ?? null),
   surname: z.string().min(1, 'Surname is required'),
