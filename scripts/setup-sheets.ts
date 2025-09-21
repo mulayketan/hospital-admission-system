@@ -69,6 +69,7 @@ async function setupGoogleSheets() {
     // Add sample patient
     const samplePatient = await PatientModel.create({
       ipdNo: 'IPD001',
+      uhidNo: 'UHID001',
       firstName: 'Ram',
       middleName: 'Vishnu',
       surname: 'Sharma',
