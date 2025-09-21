@@ -250,7 +250,6 @@ export class PatientModel {
     limit?: number 
   }): Promise<{ patients: Patient[], total: number }> {
     try {
-      console.log('PatientModel.findMany called with options:', options)
       const startTime = Date.now()
       
       // For search queries, limit the range to avoid loading too much data
@@ -262,8 +261,6 @@ export class PatientModel {
       
       const headers = data[0]
       let patients = data.slice(1).map(row => this.rowToPatient(headers, row))
-      
-      console.log(`Loaded ${patients.length} patients in ${Date.now() - startTime}ms`)
       
       // Apply search filter
       if (options?.search) {

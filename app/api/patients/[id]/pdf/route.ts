@@ -24,14 +24,6 @@ export async function GET(
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 })
     }
 
-    console.log('Patient data for PDF:', {
-      id: patient.id,
-      cashless: patient.cashless,
-      tpa: patient.tpa,
-      insuranceCompany: patient.insuranceCompany,
-      fullPatient: patient
-    })
-
     // Fetch ward charges from Google Sheets
     const wardCharges = await WardChargesModel.findByWardType(patient.ward)
 
