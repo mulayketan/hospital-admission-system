@@ -14,11 +14,17 @@ const SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 // Sheet names (tabs in the Google Sheet)
 export const SHEET_NAMES = {
   USERS: 'Users',
-  PATIENTS: 'Patients', 
+  PATIENTS: 'Patients',
   WARD_CHARGES: 'WardCharges',
-  ADMISSIONS: 'Admissions',
   TPA: 'TPAList',
-  INSURANCE_COMPANIES: 'InsuranceList'
+  INSURANCE_COMPANIES: 'InsuranceList',
+  MEDICINES: 'Medicines',
+  INVESTIGATIONS: 'Investigations',
+  PROGRESS_REPORT: 'ProgressReport',
+  NURSING_NOTES: 'NursingNotes',
+  NURSING_CHART: 'NursingChart',
+  DRUG_ORDERS: 'DrugOrders',
+  PATIENT_ADVICE: 'PatientAdvice',
 } as const
 
 // Initialize Google Sheets client

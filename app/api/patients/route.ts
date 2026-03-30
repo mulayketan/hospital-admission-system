@@ -52,12 +52,14 @@ export async function POST(request: NextRequest) {
 
     const patient = await PatientModel.create({
       ...validatedData,
-      ipdNo: validatedData.ipdNo, // Use the user-provided IPD number
+      ipdNo: validatedData.ipdNo,
       dateOfAdmission: validatedData.dateOfAdmission.toISOString(),
       dateOfDischarge: validatedData.dateOfDischarge ? validatedData.dateOfDischarge.toISOString() : null,
       firstNameMarathi: validatedData.firstNameMarathi,
       middleNameMarathi: validatedData.middleNameMarathi,
       surnameMarathi: validatedData.surnameMarathi,
+      bedNo: (validatedData as any).bedNo ?? null,
+      createdByUserId: session.user.id ?? null,
     })
 
     return NextResponse.json({

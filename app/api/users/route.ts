@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
 import { UserModel } from '@/lib/sheets-models'
 import { userSchema } from '@/lib/validations'
@@ -42,10 +43,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User already exists' }, { status: 400 })
     }
 
-    // Password is already hashed on client side, so pass it directly
+    // Hash password server-side (Bug #3 fix)
+    const hashedPassword = await bcrypt.hash(validatedData.password, 12)
     const user = await UserModel.create({
       ...validatedData,
-      password: validatedData.password // Already hashed from client
+      password: hashedPassword,
     })
     
     // Remove password from response
