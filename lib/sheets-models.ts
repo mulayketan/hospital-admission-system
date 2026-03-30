@@ -249,7 +249,7 @@ export class UserModel {
     const user: User = {
       id: generateId(),
       ...userData,
-      // Password is already hashed from client side, don't double-hash
+      // Password arrives pre-hashed from the API route (server-side bcrypt)
       password: userData.password,
       createdAt: now,
       updatedAt: now
@@ -278,7 +278,7 @@ export class UserModel {
         updatedAt: nowIST()
       }
       
-      // Password is already hashed from client side if provided
+      // Password arrives pre-hashed from the API route (server-side bcrypt) if provided
       if (userData.password) {
         updatedUser.password = userData.password
       }
@@ -850,8 +850,9 @@ export class ProgressReportModel {
       const data = await readSheet(SHEET_NAMES.PROGRESS_REPORT)
       if (data.length <= 1) return false
       return data.slice(1).some(row => row[1] === patientId && row[5] === 'true')
-    } catch {
-      return false
+    } catch (error) {
+      console.error('hasAdmissionNote: Sheets read failed', { patientId, error })
+      throw error
     }
   }
 

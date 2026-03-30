@@ -18,6 +18,20 @@ export async function PUT(
     const body = await request.json()
     const partial = progressReportEntrySchema.partial().parse(body)
 
+    // §4.3.1: diagnosis may only be written on the isAdmissionNote row
+    if (partial.diagnosis !== undefined) {
+      const existing = await ProgressReportModel.findById(id)
+      if (!existing) {
+        return NextResponse.json({ error: 'Entry not found' }, { status: 404 })
+      }
+      if (!existing.isAdmissionNote) {
+        return NextResponse.json(
+          { error: 'Diagnosis can only be updated on the admission note entry' },
+          { status: 400 }
+        )
+      }
+    }
+
     const updated = await ProgressReportModel.update(id, {
       ...(partial.diagnosis !== undefined && { diagnosis: partial.diagnosis ?? null }),
       ...(partial.dateTime !== undefined && { dateTime: partial.dateTime }),

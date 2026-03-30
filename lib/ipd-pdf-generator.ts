@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer-core'
 import type { Browser } from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
-import fs from 'fs'
+import fs from 'fs/promises'
 
 // ---------------------------------------------------------------------------
 // TypeScript interfaces (§10 of spec)
@@ -145,8 +145,11 @@ export const getBrowser = async (): Promise<Browser> => {
   } catch {
     let localPath: string | undefined
 
+    const pathExists = (p: string) =>
+      fs.access(p).then(() => true).catch(() => false)
+
     const envPath = process.env.CHROME_EXECUTABLE_PATH
-    if (envPath && fs.existsSync(envPath)) localPath = envPath
+    if (envPath && await pathExists(envPath)) localPath = envPath
 
     if (!localPath) {
       const candidates =
@@ -161,7 +164,9 @@ export const getBrowser = async (): Promise<Browser> => {
               'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
             ]
           : ['/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium']
-      localPath = candidates.find(p => fs.existsSync(p))
+      for (const p of candidates) {
+        if (await pathExists(p)) { localPath = p; break }
+      }
     }
 
     if (!localPath) throw new Error('Chrome executable not found. Set CHROME_EXECUTABLE_PATH.')
@@ -1211,7 +1216,7 @@ async function buildDrugOrderSection(
       <div style="display:flex;">${patientCol}<div style="flex:1;overflow:hidden;">${buildGrid(16, 36)}</div></div>
       ${sig}
     </div>`
-    : `${sig}`
+    : ''
 
-  return page1 + (needsPage2 ? `<div class="new-page">${page2}</div>` : page2)
+  return page1 + (needsPage2 ? `<div class="new-page">${page2}</div>` : '')
 }

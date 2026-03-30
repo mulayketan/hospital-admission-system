@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { google } from 'googleapis'
 import { JWT } from 'google-auth-library'
 
@@ -56,7 +57,7 @@ export const readSheet = async (sheetName: string, range?: string): Promise<any[
   const sheets = initSheetsClient()
   
   try {
-    console.log(`Reading sheet ${sheetName}${range ? ` with range ${range}` : ''}...`)
+    console.debug(`Reading sheet ${sheetName}${range ? ` with range ${range}` : ''}...`)
     const startTime = Date.now()
     
     // Add timeout wrapper
@@ -71,7 +72,7 @@ export const readSheet = async (sheetName: string, range?: string): Promise<any[
     
     const response = await Promise.race([apiPromise, timeoutPromise])
     const duration = Date.now() - startTime
-    console.log(`Sheet ${sheetName} read completed in ${duration}ms`)
+    console.debug(`Sheet ${sheetName} read completed in ${duration}ms`)
     
     return response.data.values || []
   } catch (error) {
@@ -81,6 +82,9 @@ export const readSheet = async (sheetName: string, range?: string): Promise<any[
 }
 
 // Generic function to write data to a sheet
+// Note: valueInputOption='RAW' is intentional — it prevents Sheets from evaluating
+// user-supplied strings starting with '=' as formulas (formula injection control).
+// Never switch to 'USER_ENTERED' without sanitizing inputs first.
 export const writeSheet = async (sheetName: string, range: string, values: any[][]): Promise<void> => {
   const sheets = initSheetsClient()
   
@@ -196,10 +200,8 @@ const getSheetId = async (sheetName: string): Promise<number> => {
   }
 }
 
-// Utility function to generate unique IDs
-export const generateId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2)
-}
+// Utility function to generate collision-resistant unique IDs
+export const generateId = (): string => randomUUID()
 
 /**
  * Converts a 0-based column index to an A1-notation column letter.

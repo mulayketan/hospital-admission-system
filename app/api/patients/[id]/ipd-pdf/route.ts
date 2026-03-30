@@ -185,7 +185,6 @@ export async function GET(
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 })
     }
 
-    // Map to IPDPatient (PatientModel.Patient doesn't yet include bedNo — treat as optional)
     const patient: IPDPatient = {
       id: patientRecord.id,
       ipdNo: patientRecord.ipdNo,
@@ -197,7 +196,7 @@ export async function GET(
       sex: patientRecord.sex,
       ward: patientRecord.ward,
       treatingDoctor: patientRecord.treatingDoctor,
-      bedNo: (patientRecord as unknown as { bedNo?: string | null }).bedNo ?? null,
+      bedNo: patientRecord.bedNo ?? null,
     }
 
     let pdfBuffer: Buffer

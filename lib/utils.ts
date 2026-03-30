@@ -69,9 +69,11 @@ export const buildISTDateTime = (date: string, time: string): string => {
 }
 
 /**
- * Returns today's date as YYYY-MM-DD.
+ * Returns today's date as YYYY-MM-DD in IST (Asia/Kolkata).
+ * Using IST prevents the date rolling back to yesterday after midnight IST but before midnight UTC.
  */
-export const todayDate = (): string => new Date().toISOString().split('T')[0]
+export const todayDate = (): string =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date())
 
 /**
  * Returns current time as HH:MM (24-hour).

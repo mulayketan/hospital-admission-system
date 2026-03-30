@@ -24,7 +24,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // For now, we'll keep this endpoint but it won't be used since ward charges are pre-populated
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Ward charges are managed directly in Google Sheets
     return NextResponse.json(
       { error: 'Ward charges are managed in Google Sheets' },
       { status: 501 }

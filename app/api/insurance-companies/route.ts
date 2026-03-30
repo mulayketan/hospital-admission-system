@@ -12,8 +12,8 @@ export async function GET() {
 
     const insuranceCompanies = await InsuranceCompanyModel.findMany()
     return NextResponse.json({ insuranceCompanies })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching insurance companies:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch insurance companies' }, { status: 500 })
   }
 }

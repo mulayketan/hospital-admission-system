@@ -25,7 +25,6 @@ interface Patient {
   treatingDoctor: string | null
   bedNo: string | null
   dateOfAdmission: string
-  admissions: any[]
   createdAt: string
 }
 

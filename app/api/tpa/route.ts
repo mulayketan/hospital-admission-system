@@ -12,8 +12,8 @@ export async function GET() {
 
     const tpaList = await TPAModel.findMany()
     return NextResponse.json({ tpaList })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching TPA list:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch TPA list' }, { status: 500 })
   }
 }
