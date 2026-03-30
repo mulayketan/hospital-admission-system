@@ -1,7 +1,4 @@
-import puppeteer from 'puppeteer-core'
-import type { Browser } from 'puppeteer-core'
-import chromium from '@sparticuz/chromium'
-import fs from 'fs/promises'
+import { getBrowser } from './browser'
 
 // ---------------------------------------------------------------------------
 // TypeScript interfaces (§10 of spec)
@@ -97,90 +94,6 @@ export interface PatientAdvice {
   updatedAt: string
 }
 
-// ---------------------------------------------------------------------------
-// Browser caching (reuse existing pattern from pdf-generator-final.ts)
-// ---------------------------------------------------------------------------
-
-let browserInstance: Browser | null = null
-let browserLastUsed = 0
-const BROWSER_TIMEOUT = 2 * 60 * 1000
-
-export const getBrowser = async (): Promise<Browser> => {
-  const now = Date.now()
-
-  if (browserInstance && now - browserLastUsed < BROWSER_TIMEOUT) {
-    try {
-      await browserInstance.version()
-      browserLastUsed = now
-      return browserInstance
-    } catch {
-      try { await browserInstance.close() } catch {}
-      browserInstance = null
-    }
-  }
-
-  const commonArgs = [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-dev-shm-usage',
-    '--disable-accelerated-2d-canvas',
-    '--no-first-run',
-    '--no-zygote',
-    '--disable-gpu',
-    '--disable-web-security',
-    '--font-render-hinting=none',
-    '--enable-font-antialiasing',
-    '--force-color-profile=srgb',
-  ]
-
-  try {
-    const executablePath = await chromium.executablePath()
-    browserInstance = await puppeteer.launch({
-      args: [...chromium.args, ...commonArgs, '--disable-features=VizDisplayCompositor'],
-      defaultViewport: chromium.defaultViewport,
-      executablePath,
-      headless: true,
-      ignoreHTTPSErrors: true,
-    })
-  } catch {
-    let localPath: string | undefined
-
-    const pathExists = (p: string) =>
-      fs.access(p).then(() => true).catch(() => false)
-
-    const envPath = process.env.CHROME_EXECUTABLE_PATH
-    if (envPath && await pathExists(envPath)) localPath = envPath
-
-    if (!localPath) {
-      const candidates =
-        process.platform === 'darwin'
-          ? [
-              '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-              '/Applications/Chromium.app/Contents/MacOS/Chromium',
-            ]
-          : process.platform === 'win32'
-          ? [
-              'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-              'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-            ]
-          : ['/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium']
-      for (const p of candidates) {
-        if (await pathExists(p)) { localPath = p; break }
-      }
-    }
-
-    if (!localPath) throw new Error('Chrome executable not found. Set CHROME_EXECUTABLE_PATH.')
-
-    browserInstance = await puppeteer.launch({
-      executablePath: localPath,
-      headless: true,
-      args: commonArgs,
-    })
-  }
-
-  browserLastUsed = Date.now()
-  return browserInstance
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -846,8 +759,9 @@ export const generateDrugOrderPDF = async ({
   <div class="container">
     ${header}
     ${page1}
-    ${needsPage2 ? `<div style="page-break-before:always;margin-top:8px;">${header}${page2}${footer}</div>` : ''}
-    ${footer}
+    ${needsPage2
+      ? `<div style="page-break-before:always;margin-top:8px;">${header}${page2}${footer}</div>`
+      : footer}
   </div>`
 
   return renderPDF(htmlDoc('landscape', body), 'landscape')
@@ -1080,8 +994,12 @@ export const generateCombinedIPDPDF = async ({
   try {
     await page.setViewport({ width: 1600, height: 1100 })
     await page.setContent(combinedHtml, { waitUntil: 'domcontentloaded' })
+    // Do NOT pass `format` or `landscape` here — the combined PDF uses CSS
+    // @page named-pages to control per-section orientation (portrait for
+    // Progress Report / Nursing Notes; landscape for Nursing Chart / Drug Orders).
+    // Passing format:'A4' would override the CSS @page size directives and render
+    // all sections as portrait, breaking the landscape sections (§8.3, §8.4).
     const pdfBuffer = await page.pdf({
-      format: 'A4',
       printBackground: true,
       margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
       timeout: 28000,

@@ -7,6 +7,7 @@ import {
   deleteRow, 
   generateId,
   nowIST,
+  sanitizeSheetValue,
   SHEET_NAMES 
 } from './google-sheets'
 
@@ -166,17 +167,6 @@ export interface WardCharges {
   syringePumpCharges: number | string | null
   bloodTransfusionCharges: number | string | null
   visitingCharges: number | string | null
-  createdAt: string
-  updatedAt: string
-}
-
-export interface Admission {
-  id: string
-  patientId: string
-  admissionDate: string
-  dischargeDate: string | null
-  ward: string
-  doctorName: string
   createdAt: string
   updatedAt: string
 }
@@ -657,12 +647,7 @@ export class TPAModel {
       return rows.map((row, index) => this.rowToTPA(headers, row))
     } catch (error) {
       console.error('Error finding TPAs:', error)
-      // Return some default TPA options if sheet is not accessible
-      return [
-        { id: 'tpa1', name: 'Star Health Insurance', createdAt: nowIST(), updatedAt: nowIST() },
-        { id: 'tpa2', name: 'ICICI Lombard', createdAt: nowIST(), updatedAt: nowIST() },
-        { id: 'tpa3', name: 'HDFC ERGO', createdAt: nowIST(), updatedAt: nowIST() }
-      ]
+      throw error
     }
   }
   
@@ -712,12 +697,7 @@ export class InsuranceCompanyModel {
       return rows.map((row, index) => this.rowToInsuranceCompany(headers, row))
     } catch (error) {
       console.error('Error finding insurance companies:', error)
-      // Return some default insurance options if sheet is not accessible
-      return [
-        { id: 'ins1', name: 'LIC of India', createdAt: nowIST(), updatedAt: nowIST() },
-        { id: 'ins2', name: 'SBI General Insurance', createdAt: nowIST(), updatedAt: nowIST() },
-        { id: 'ins3', name: 'New India Assurance', createdAt: nowIST(), updatedAt: nowIST() }
-      ]
+      throw error
     }
   }
   
@@ -933,11 +913,11 @@ export class ProgressReportModel {
       entry.id,
       entry.patientId,
       entry.ipdNo,
-      entry.diagnosis || '',
+      sanitizeSheetValue(entry.diagnosis || ''),
       entry.dateTime,
       entry.isAdmissionNote.toString(),
-      entry.doctorNotes,
-      entry.treatment || '',
+      sanitizeSheetValue(entry.doctorNotes),
+      sanitizeSheetValue(entry.treatment || ''),
       entry.staffName,
       entry.doctorSignature || '',
       entry.createdAt,
@@ -1041,8 +1021,8 @@ export class NursingNotesModel {
       note.patientId,
       note.ipdNo,
       note.dateTime,
-      note.notes,
-      note.treatment || '',
+      sanitizeSheetValue(note.notes),
+      sanitizeSheetValue(note.treatment || ''),
       note.staffName,
       note.isHandover.toString(),
       note.createdAt,
@@ -1284,7 +1264,7 @@ export class DrugOrderModel {
       order.id,
       order.patientId,
       order.ipdNo,
-      order.drugName,
+      sanitizeSheetValue(order.drugName),
       order.drugAllergy || '',
       order.frequency,
       order.route,
@@ -1397,11 +1377,11 @@ export class PatientAdviceModel {
       advice.ipdNo,
       advice.dateTime,
       advice.category,
-      advice.investigationName,
-      advice.notes || '',
+      sanitizeSheetValue(advice.investigationName),
+      sanitizeSheetValue(advice.notes || ''),
       advice.advisedBy,
       advice.status,
-      advice.reportNotes || '',
+      sanitizeSheetValue(advice.reportNotes || ''),
       advice.createdAt,
       advice.updatedAt,
     ]

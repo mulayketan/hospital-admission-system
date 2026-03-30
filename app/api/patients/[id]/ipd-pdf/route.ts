@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { PatientModel } from '@/lib/sheets-models'
-import { readSheet } from '@/lib/google-sheets'
+import {
+  PatientModel,
+  ProgressReportModel,
+  NursingNotesModel,
+  NursingChartModel,
+  DrugOrderModel,
+  PatientAdviceModel,
+} from '@/lib/sheets-models'
 import {
   generateProgressReportPDF,
   generateNursingNotesPDF,
@@ -10,137 +16,9 @@ import {
   generateDrugOrderPDF,
   generateCombinedIPDPDF,
   type IPDPatient,
-  type ProgressReportEntry,
-  type NursingNote,
-  type VitalSign,
-  type DrugOrder,
-  type PatientAdvice,
 } from '@/lib/ipd-pdf-generator'
 
 export const runtime = 'nodejs'
-
-// ---------------------------------------------------------------------------
-// Inline sheet readers — minimal row-mapping for PDF data fetch
-// ---------------------------------------------------------------------------
-
-async function getProgressReportEntries(patientId: string): Promise<ProgressReportEntry[]> {
-  const data = await readSheet('ProgressReport')
-  if (data.length <= 1) return []
-  return data
-    .slice(1)
-    .filter(row => row[1] === patientId)
-    .map(row => ({
-      id: row[0] || '',
-      patientId: row[1] || '',
-      ipdNo: row[2] || '',
-      diagnosis: row[3] || null,
-      dateTime: row[4] || '',
-      isAdmissionNote: row[5] === 'true',
-      doctorNotes: row[6] || '',
-      treatment: row[7] || null,
-      staffName: row[8] || '',
-      doctorSignature: row[9] || null,
-      createdAt: row[10] || '',
-      updatedAt: row[11] || '',
-    }))
-}
-
-async function getNursingNotes(patientId: string): Promise<NursingNote[]> {
-  const data = await readSheet('NursingNotes')
-  if (data.length <= 1) return []
-  return data
-    .slice(1)
-    .filter(row => row[1] === patientId)
-    .map(row => ({
-      id: row[0] || '',
-      patientId: row[1] || '',
-      ipdNo: row[2] || '',
-      dateTime: row[3] || '',
-      notes: row[4] || '',
-      treatment: row[5] || null,
-      staffName: row[6] || '',
-      isHandover: row[7] === 'true',
-      createdAt: row[8] || '',
-      updatedAt: row[9] || '',
-    }))
-}
-
-async function getVitalSigns(patientId: string): Promise<VitalSign[]> {
-  const data = await readSheet('NursingChart')
-  if (data.length <= 1) return []
-  return data
-    .slice(1)
-    .filter(row => row[1] === patientId)
-    .map(row => ({
-      id: row[0] || '',
-      patientId: row[1] || '',
-      ipdNo: row[2] || '',
-      dateTime: row[3] || '',
-      temp: row[4] || null,
-      pulse: row[5] || null,
-      bp: row[6] || null,
-      spo2: row[7] || null,
-      bsl: row[8] || null,
-      ivFluids: row[9] || null,
-      staffName: row[10] || '',
-      createdAt: row[11] || '',
-      updatedAt: row[12] || '',
-    }))
-}
-
-async function getDrugOrders(patientId: string): Promise<DrugOrder[]> {
-  const data = await readSheet('DrugOrders')
-  if (data.length <= 1) return []
-  return data
-    .slice(1)
-    .filter(row => row[1] === patientId)
-    .map(row => {
-      // Columns K–AT (indices 10–45) = day1–day36
-      const days: Record<string, string> = {}
-      for (let i = 0; i < 36; i++) {
-        const val = row[10 + i]
-        if (val) days[`day${i + 1}`] = val
-      }
-      return {
-        id: row[0] || '',
-        patientId: row[1] || '',
-        ipdNo: row[2] || '',
-        drugName: row[3] || '',
-        drugAllergy: row[4] || null,
-        frequency: row[5] || '',
-        route: row[6] || '',
-        startDate: row[7] || '',
-        ward: row[8] || null,
-        bedNo: row[9] || null,
-        days,
-        medOfficerSignature: row[46] || null,
-        createdAt: row[47] || '',
-        updatedAt: row[48] || '',
-      }
-    })
-}
-
-async function getPatientAdvice(patientId: string): Promise<PatientAdvice[]> {
-  const data = await readSheet('PatientAdvice')
-  if (data.length <= 1) return []
-  return data
-    .slice(1)
-    .filter(row => row[1] === patientId)
-    .map(row => ({
-      id: row[0] || '',
-      patientId: row[1] || '',
-      ipdNo: row[2] || '',
-      dateTime: row[3] || '',
-      category: row[4] || '',
-      investigationName: row[5] || '',
-      notes: row[6] || null,
-      advisedBy: row[7] || '',
-      status: (row[8] as PatientAdvice['status']) || 'Pending',
-      reportNotes: row[9] || null,
-      createdAt: row[10] || '',
-      updatedAt: row[11] || '',
-    }))
-}
 
 // ---------------------------------------------------------------------------
 // Route handler
@@ -209,11 +87,11 @@ export async function GET(
       // -----------------------------------------------------------------------
       const [progressEntries, adviceEntries, nursingNotes, vitalSigns, drugOrders] =
         await Promise.all([
-          getProgressReportEntries(id),
-          getPatientAdvice(id),
-          getNursingNotes(id),
-          getVitalSigns(id),
-          getDrugOrders(id),
+          ProgressReportModel.findByPatientId(id),
+          PatientAdviceModel.findByPatientId(id),
+          NursingNotesModel.findByPatientId(id),
+          NursingChartModel.findByPatientId(id),
+          DrugOrderModel.findByPatientId(id),
         ])
 
       pdfBuffer = await generateCombinedIPDPDF({
@@ -227,22 +105,22 @@ export async function GET(
       fileName = `ipd-complete-${ipdLabel}.pdf`
     } else if (formParam === 'progress-report') {
       const [entries, adviceEntries] = await Promise.all([
-        getProgressReportEntries(id),
-        getPatientAdvice(id),
+        ProgressReportModel.findByPatientId(id),
+        PatientAdviceModel.findByPatientId(id),
       ])
       pdfBuffer = await generateProgressReportPDF({ patient, entries, adviceEntries })
       fileName = `ipd-progress-report-${ipdLabel}.pdf`
     } else if (formParam === 'nursing-notes') {
-      const entries = await getNursingNotes(id)
+      const entries = await NursingNotesModel.findByPatientId(id)
       pdfBuffer = await generateNursingNotesPDF({ patient, entries })
       fileName = `ipd-nursing-notes-${ipdLabel}.pdf`
     } else if (formParam === 'nursing-chart') {
-      const vitalSigns = await getVitalSigns(id)
+      const vitalSigns = await NursingChartModel.findByPatientId(id)
       pdfBuffer = await generateNursingChartPDF({ patient, vitalSigns })
       fileName = `ipd-nursing-chart-${ipdLabel}.pdf`
     } else {
       // formParam === 'drug-orders'
-      const drugOrders = await getDrugOrders(id)
+      const drugOrders = await DrugOrderModel.findByPatientId(id)
       pdfBuffer = await generateDrugOrderPDF({ patient, drugOrders })
       fileName = `ipd-drug-orders-${ipdLabel}.pdf`
     }

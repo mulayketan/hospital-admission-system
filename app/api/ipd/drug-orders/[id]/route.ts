@@ -1,8 +1,9 @@
+import { ZodError } from 'zod'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { DrugOrderModel } from '@/lib/sheets-models'
-import { drugOrderSchema } from '@/lib/validations'
+import { drugOrderSchema , zodErrorBody } from '@/lib/validations'
 
 export async function PUT(
   request: NextRequest,
@@ -36,9 +37,12 @@ export async function PUT(
 
     return NextResponse.json(updated)
   } catch (error) {
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
+    if (error instanceof ZodError) {
+        return NextResponse.json(zodErrorBody(error), { status: 400 })
+      }
+      if (error instanceof Error) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
+      }
     console.error('Error updating drug order:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

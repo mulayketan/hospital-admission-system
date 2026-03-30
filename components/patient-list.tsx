@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { translations } from '@/lib/translations'
 import { formatDate } from '@/lib/utils'
-import { Search, Download, Edit, Trash2, Eye, FileText, ClipboardList } from 'lucide-react'
+import { Search, Download, Edit, Trash2, ClipboardList } from 'lucide-react'
 import type { SelectedPatient } from '@/lib/ipd-types'
 
 interface Patient {

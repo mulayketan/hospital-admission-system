@@ -1,8 +1,9 @@
+import { ZodError } from 'zod'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { ProgressReportModel } from '@/lib/sheets-models'
-import { progressReportEntrySchema } from '@/lib/validations'
+import { progressReportEntrySchema, zodErrorBody } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,9 +53,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(entry, { status: 201 })
   } catch (error) {
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
+    if (error instanceof ZodError) {
+        return NextResponse.json(zodErrorBody(error), { status: 400 })
+      }
+      if (error instanceof Error) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
+      }
     console.error('Error creating progress report entry:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

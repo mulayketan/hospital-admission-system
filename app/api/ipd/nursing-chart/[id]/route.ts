@@ -1,8 +1,9 @@
+import { ZodError } from 'zod'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NursingChartModel } from '@/lib/sheets-models'
-import { vitalSignBaseSchema } from '@/lib/validations'
+import { vitalSignBaseSchema , zodErrorBody } from '@/lib/validations'
 
 export async function PUT(
   request: NextRequest,
@@ -17,6 +18,21 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     const partial = vitalSignBaseSchema.partial().parse(body)
+
+    // Load existing record so we can validate the merged result (§4.5 refine)
+    const existing = await NursingChartModel.findById(id)
+    if (!existing) {
+      return NextResponse.json({ error: 'Entry not found' }, { status: 404 })
+    }
+
+    const merged = { ...existing, ...partial }
+    const vitals = [merged.temp, merged.pulse, merged.bp, merged.spo2]
+    if (!vitals.some(v => v && v.trim() !== '')) {
+      return NextResponse.json(
+        { error: 'At least one of Temp, Pulse, B.P, SPO2 is required' },
+        { status: 400 }
+      )
+    }
 
     const updated = await NursingChartModel.update(id, {
       ...(partial.dateTime !== undefined && { dateTime: partial.dateTime }),
@@ -35,9 +51,12 @@ export async function PUT(
 
     return NextResponse.json(updated)
   } catch (error) {
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
+    if (error instanceof ZodError) {
+        return NextResponse.json(zodErrorBody(error), { status: 400 })
+      }
+      if (error instanceof Error) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
+      }
     console.error('Error updating nursing chart entry:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

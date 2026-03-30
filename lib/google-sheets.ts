@@ -81,6 +81,19 @@ export const readSheet = async (sheetName: string, range?: string): Promise<any[
   }
 }
 
+/**
+ * Sanitizes a user-supplied string before writing to Google Sheets.
+ * Strings that start with =, +, -, @, TAB, or CR are prefixed with a single
+ * quote so Google Sheets does not evaluate them as formulas when the sheet is
+ * viewed in a browser or exported to CSV/Excel.
+ * Apply this to all free-text fields: doctorNotes, treatment, diagnosis,
+ * notes, drugName, investigationName, reportNotes, etc.
+ */
+export const sanitizeSheetValue = (value: string): string => {
+  if (/^[=+\-@\t\r]/.test(value)) return `'${value}`
+  return value
+}
+
 // Generic function to write data to a sheet
 // Note: valueInputOption='RAW' is intentional — it prevents Sheets from evaluating
 // user-supplied strings starting with '=' as formulas (formula injection control).

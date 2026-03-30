@@ -21,10 +21,7 @@ export async function GET(
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 })
     }
 
-    return NextResponse.json({
-      ...patient,
-      admissions: [] // Add empty admissions array for compatibility
-    })
+    return NextResponse.json(patient)
   } catch (error) {
     console.error('Error fetching patient:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -55,10 +52,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Patient not found' }, { status: 404 })
     }
 
-    return NextResponse.json({
-      ...patient,
-      admissions: [] // Add empty admissions array for compatibility
-    })
+    return NextResponse.json(patient)
   } catch (error) {
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
@@ -76,6 +70,10 @@ export async function DELETE(
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden: ADMIN role required' }, { status: 403 })
     }
 
     const { id } = await params

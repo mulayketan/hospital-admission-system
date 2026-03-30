@@ -121,3 +121,4 @@ temp/
 prisma/migrations/
 .env.backup
 snapshots/
+env.local

@@ -1,4 +1,13 @@
-import { z } from 'zod'
+import { z, ZodError } from 'zod'
+
+/**
+ * Returns a structured NextResponse-compatible error body for Zod validation failures.
+ * Usage: if (error instanceof ZodError) return zodErrorResponse(error)
+ */
+export const zodErrorBody = (error: ZodError) => ({
+  error: 'Validation failed',
+  issues: error.issues.map(i => ({ path: i.path.join('.'), message: i.message })),
+})
 
 // ── IPD Treatment Plan schemas (§9 of spec) ──────────────────────────────────
 

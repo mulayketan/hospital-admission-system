@@ -61,7 +61,7 @@ async function createSheetTabs() {
     console.log('📋 Existing sheets:', existingSheets)
 
   const requiredSheets = [
-    'Users', 'Patients', 'WardCharges',
+    'Users', 'Patients', 'WardCharges', 'TPAList', 'InsuranceList',
     'Medicines', 'Investigations',
     'ProgressReport', 'NursingNotes', 'NursingChart', 'DrugOrders', 'PatientAdvice',
   ]

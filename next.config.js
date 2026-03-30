@@ -2,31 +2,28 @@
 const nextConfig = {
   // Optimize for Vercel deployment
   output: 'standalone',
-  
-  // Environment variables
-  env: {
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-    GOOGLE_SHEETS_ID: process.env.GOOGLE_SHEETS_ID,
-    GOOGLE_SERVICE_ACCOUNT_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
-  },
-  
+
+  // NOTE: Do NOT add server secrets (GOOGLE_SERVICE_ACCOUNT_KEY, NEXTAUTH_SECRET,
+  // GOOGLE_SHEETS_ID) to the `env` block here. The `env` block inlines values into
+  // client bundles at build time. Server Components and API Routes read process.env
+  // directly without any configuration needed.
+  // Client-accessible values must use the NEXT_PUBLIC_ prefix instead.
+
   // Optimize images for Vercel
   images: {
     domains: [],
     unoptimized: false,
   },
-  
+
   // Webpack configuration for better bundling
   webpack: (config, { isServer }) => {
     // Optimize for serverless functions
     if (isServer) {
       config.externals.push('puppeteer')
     }
-    
     return config
   },
-  
+
   // External packages for serverless functions
   serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium'],
 }

@@ -1,7 +1,4 @@
-import puppeteer from 'puppeteer-core'
-import type { Browser } from 'puppeteer-core'
-import chromium from '@sparticuz/chromium'
-import fs from 'fs'
+import { getBrowser } from './browser'
 import { formatDate, formatTimeWithAmPm } from './utils'
 import { WardChargesModel } from './sheets-models'
 
@@ -9,11 +6,6 @@ import { WardChargesModel } from './sheets-models'
 let wardChargesCache: any[] | null = null
 let cacheTimestamp: number = 0
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes in milliseconds
-
-// Browser instance caching for better performance
-let browserInstance: Browser | null = null
-let browserLastUsed: number = 0
-const BROWSER_TIMEOUT = 2 * 60 * 1000 // 2 minutes
 
 interface PatientWithMarathi {
   id: string
@@ -101,102 +93,6 @@ const getCachedWardCharges = async () => {
   return wardChargesCache
 }
 
-// Helper function to get or create browser instance
-const getBrowserInstance = async (): Promise<Browser> => {
-  const now = Date.now()
-  
-  // Check if we have a valid cached browser
-  if (browserInstance && (now - browserLastUsed) < BROWSER_TIMEOUT) {
-    try {
-      // Test if browser is still connected
-      await browserInstance.version()
-      browserLastUsed = now
-      return browserInstance
-    } catch {
-      // Browser is disconnected, close and recreate
-      try { await browserInstance.close() } catch {}
-      browserInstance = null
-    }
-  }
-  
-  // Create new browser instance
-  try {
-    const executablePath = await chromium.executablePath()
-    
-    const launchArgs = [
-      ...chromium.args,
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu',
-      '--disable-web-security',
-      '--font-render-hinting=none',
-      '--enable-font-antialiasing',
-      '--force-color-profile=srgb',
-      '--disable-features=VizDisplayCompositor'
-    ]
-    
-    browserInstance = await puppeteer.launch({
-      args: launchArgs,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: executablePath,
-      headless: true,
-      ignoreHTTPSErrors: true,
-    })
-  } catch (err: any) {
-    const envPath = process.env.CHROME_EXECUTABLE_PATH
-    let localExecutablePath: string | undefined = envPath && fs.existsSync(envPath) ? envPath : undefined
-    if (!localExecutablePath) {
-      if (process.platform === 'darwin') {
-        const macCandidates = [
-          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-          '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
-          '/Applications/Chromium.app/Contents/MacOS/Chromium',
-        ]
-        localExecutablePath = macCandidates.find(p => fs.existsSync(p))
-      } else if (process.platform === 'win32') {
-        const winCandidates = [
-          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-        ]
-        localExecutablePath = winCandidates.find(p => fs.existsSync(p))
-      } else {
-        const linuxCandidates = [
-          '/usr/bin/google-chrome',
-          '/usr/bin/chromium-browser',
-          '/usr/bin/chromium',
-        ]
-        localExecutablePath = linuxCandidates.find(p => fs.existsSync(p))
-      }
-    }
-    if (!localExecutablePath) {
-      throw new Error('Local Chrome executable not found. Set CHROME_EXECUTABLE_PATH or install Google Chrome.')
-    }
-    browserInstance = await puppeteer.launch({ 
-      executablePath: localExecutablePath, 
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        '--disable-web-security',
-        '--font-render-hinting=none',
-        '--enable-font-antialiasing',
-        '--force-color-profile=srgb'
-      ]
-    })
-  }
-  
-  browserLastUsed = now
-  return browserInstance
-}
 
 export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerationOptions): Promise<Buffer> => {
   // Get ward charges (cached or fresh)
@@ -557,7 +453,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
   `
 
   // Use cached browser instance for better performance
-  const browser = await getBrowserInstance()
+  const browser = await getBrowser()
   const page = await browser.newPage()
   
   try {
