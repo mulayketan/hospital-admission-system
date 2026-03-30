@@ -7,12 +7,13 @@ Each chat should be opened with the **worktree folder** as the workspace root.
 
 ## How to Open Each Agent Chat
 
-| Track | Open this folder in Cursor | Model |
-|-------|---------------------------|-------|
-| Backend | `worktrees/ipd-backend` | claude-sonnet |
-| Frontend | `worktrees/ipd-frontend` | claude-sonnet |
-| Sheets + PDF | `worktrees/ipd-sheets-pdf` | claude-sonnet |
-| Tests | `worktrees/ipd-tests` | codex / o4-mini |
+| Track | Open this folder in Cursor | Model | When to run |
+|-------|---------------------------|-------|-------------|
+| Backend | `worktrees/ipd-backend` | claude-sonnet | Phase 1 |
+| Frontend | `worktrees/ipd-frontend` | claude-sonnet | Phase 1 (parallel) |
+| Sheets + PDF | `worktrees/ipd-sheets-pdf` | claude-sonnet | Phase 1 (parallel) |
+| Tests | `worktrees/ipd-tests` | codex / o4-mini | Phase 1 (parallel) |
+| **Code Review** | **main repo root (after merge)** | **claude-opus / Composer** | **Phase 2 — after all merges** |
 
 In each Cursor window: **File → Open Folder** → select the worktree path above.
 Then paste the prompt below into a new Agent chat.
@@ -241,6 +242,153 @@ Key facts from the spec:
 
 Commit your work on branch feature/ipd-tests with message:
 "test: add unit and integration tests for IPD treatment plan module"
+```
+
+---
+
+## CODE REVIEW AGENT PROMPT
+(Open folder: `worktrees/ipd-backend` OR the main repo root after merging, model: **claude-opus / Composer**)
+
+> Run this agent **after all four implementation agents have committed** and ideally after merging into master. It performs a full critical evaluation of both the existing codebase and all IPD additions.
+
+```
+You are a senior full-stack engineer performing a critical code review of a
+Next.js 15 (App Router) + Google Sheets hospital management system.
+
+The codebase is at the repo root. The IPD Treatment Plan spec is at IPD_TREATMENT_SPEC.md.
+Read the spec fully before reviewing — it is the contract all IPD code must satisfy.
+
+## Your Mission
+
+Produce a structured review report covering the ENTIRE codebase (existing + new IPD code).
+Flag every issue with severity: CRITICAL | WARNING | SUGGESTION.
+For every finding include: file path, line number(s), problem description, and a concrete fix.
+
+---
+
+## Review Checklist
+
+### 1. TypeScript & Type Safety
+- No use of `any` — flag every occurrence; suggest specific types
+- All Google Sheets row arrays must be typed with explicit tuple or interface (not `string[]`)
+- Zod inferred types used consistently — no manual re-declaration of equivalent interfaces
+- All `z.infer<typeof schema>` types exported and used in API handlers + components
+- No implicit `undefined` access on optional fields without null checks
+- React component props typed with interfaces, not inline objects
+
+### 2. API Route Security
+- Every mutating route (POST/PUT/DELETE) must call `getServerSession()` and return 401 if no session
+- DELETE routes must check `session.user.role === 'ADMIN'` → 403 for STAFF (per spec §5)
+- Every route must parse the request body with the corresponding Zod schema → 400 on failure
+- No secret values (GOOGLE_SERVICE_ACCOUNT_KEY, NEXTAUTH_SECRET) logged or returned in API responses
+- Formula injection in Google Sheets: any user input stored in Sheets must be sanitised
+  (values starting with `=`, `+`, `-`, `@` must be prefixed with a single quote or rejected)
+
+### 3. Google Sheets Data Layer (lib/google-sheets.ts, lib/sheets-models.ts)
+- All SHEET_NAMES entries match the actual tab names created by scripts/create-sheets.ts
+- Row read/write column indices are consistent between Model.create and Model.findMany
+- No N+1 reads: models must not call readSheet inside a loop
+- generateId() produces collision-resistant IDs; no sequential integers
+- Error handling: all Sheets API calls wrapped in try/catch with meaningful error messages
+- No stale data risk: reads always fetch fresh rows (no in-memory caching without TTL)
+
+### 4. IPD Spec Compliance (compare code against IPD_TREATMENT_SPEC.md)
+- §4.3.1: isAdmissionNote=true row is the ONLY row storing diagnosis — verify model logic
+- §4.5: vitalSignSchema .refine() requires at least one of temp/pulse/bp/spo2 — verify API enforces this
+- §4.6: DrugOrder day1–day36 columns K–AT — verify column mapping in DrugOrderModel
+- §5: All 12 API routes exist (10 CRUD + 2 master data GET endpoints)
+- §9: Route enum value is exactly "INJ (IM)" with a space — check all occurrences
+- §9: Investigation category enum has exactly 9 values including "Urine Test" and "Echo"
+- §8.3: NursingChart PDF is Landscape A4 — verify Puppeteer page settings
+- §8.4: DrugOrder PDF page 2 ("PTO") rendered only when days > 15
+
+### 5. React & Next.js Patterns
+- No `use client` in files that could be Server Components
+- No `useEffect` used for data fetching that should be a Server Component or Route Handler
+- Forms use `react-hook-form` + Zod resolver consistently (no raw `useState` for form fields)
+- Loading and error states handled in every data-fetching component
+- No unhandled Promise rejections in event handlers (must be wrapped in try/catch)
+- No direct `fetch()` calls from Server Components to own API routes (use model layer directly)
+- `next/image` used for all `<img>` tags; no raw `<img>` with external URLs
+
+### 6. Performance
+- Puppeteer PDF generation: browser instance reuse via `getBrowser()` singleton — not spawning per request
+- No synchronous file I/O in API routes
+- Google Sheets: no unbounded reads (readSheet on sheets with potentially thousands of rows
+  must filter by patientId in-memory efficiently, or flag for indexing strategy)
+- React: expensive list renders use `key` props correctly; no index-as-key on reorderable lists
+
+### 7. Error Handling & Observability
+- All API routes return structured JSON errors: `{ error: string }` — no raw exception messages to client
+- Server-side errors logged with `console.error` (not `console.log`) including context (patientId, route)
+- No empty catch blocks
+- PDF route: timeout handling — what happens if Puppeteer hangs past Vercel's 30s limit?
+
+### 8. Code Quality & Consistency
+- No duplicate schema declarations (e.g., same Zod schema defined twice in validations.ts)
+- No unused imports or dead exports
+- Consistent datetime format: all datetimes stored/returned as ISO 8601 IST (§2.9 of spec)
+- Magic strings extracted to constants (sheet names, column indices, enum values)
+- No hardcoded hospital name / doctor name strings in code (must come from env or data)
+- File naming: kebab-case for all files under components/ and app/
+
+### 9. Authentication & Session
+- `next-auth` session checked on both client (useSession) and server (getServerSession) as appropriate
+- JWT strategy: session.user has role, id, name — no extra sensitive fields in token
+- No client component reads session.user.id from a prop passed down from server — use useSession()
+
+### 10. Existing Feature Regression Check
+- Patient registration flow (components/admission-form.tsx + /api/patients POST) untouched except Bed No. field
+- Patient list (components/patient-list.tsx) search/display working; only addition is "Open IPD" button
+- PDF export (/api/patients/[id]/pdf) uses lib/pdf-generator-final.ts — NOT the new IPD generator
+- Ward charges and TPA management routes unaffected
+- User management (create/delete user) unaffected
+- Login flow (/login, next-auth) unaffected
+
+---
+
+## Output Format
+
+Produce your report as markdown with this structure:
+
+```markdown
+# Code Review Report — Hospital Admission System (IPD Implementation)
+Date: <today>
+Reviewer: AI Code Review Agent
+Scope: Full codebase (existing + IPD additions)
+
+## Executive Summary
+<2–3 sentence overall assessment. Is this safe to deploy?>
+
+## CRITICAL Issues (must fix before deploying)
+### [CR-1] <Short title>
+- **File:** path/to/file.ts, line XX
+- **Problem:** ...
+- **Fix:** ...
+
+## WARNING Issues (strongly recommended)
+### [WA-1] <Short title>
+...
+
+## SUGGESTION (nice-to-have)
+### [SU-1] <Short title>
+...
+
+## Spec Compliance Summary
+| Spec Section | Check | Status | Notes |
+|---|---|---|---|
+| §4.3.1 isAdmissionNote | diagnosis only on admission row | ✅ / ❌ | |
+...
+
+## Regression Risk Assessment
+| Existing Feature | Affected? | Notes |
+|---|---|---|
+| Patient registration | No / Yes — <explain> | |
+...
+```
+
+After writing the report, do NOT make any code changes.
+Save the report as: CODE_REVIEW_REPORT.md in the repo root.
 ```
 
 ---
