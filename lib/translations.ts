@@ -99,7 +99,96 @@ export const translations = {
     loginError: "Invalid credentials",
     deleteSuccess: "Patient deleted successfully",
     deleteError: "Error deleting patient",
+
+    // IPD Treatment Plan
+    ipdTreatment: "IPD Treatment",
+    ipdTreatmentDesc: "Manage IPD treatment plans, drug orders, and nursing records",
+    openIpd: "Open IPD",
+    changePatient: "Change Patient",
+    bedNo: "Bed No.",
+    progressReport: "Progress Report",
+    nursingNotes: "Nursing Notes",
+    nursingChart: "Nursing Chart",
+    drugOrders: "Drug Orders",
+    advice: "Advice",
+    exportPdf: "Export PDF",
+
+    // Progress Report
+    diagnosis: "Diagnosis / Chief Complaint",
+    clinicalNotes: "Clinical Notes",
+    addEntry: "Add Entry",
+    addClinicalNote: "Add Clinical Note",
+    doctorNotes: "Doctor's Notes",
+    treatment: "Treatment Ordered",
+    staffName: "Staff Name",
+    signingDoctor: "Signing Doctor",
+    admissionNote: "Admission Note",
+    saveEntry: "Save Entry",
+    editEntry: "Edit Entry",
+
+    // Nursing Notes
+    addNote: "Add Note",
+    addNursingNote: "Add Nursing Note",
+    notes: "Notes / Treatment Given",
+    treatmentGiven: "Treatment Given",
+    isHandover: "Shift Handover",
+    handover: "HANDOVER",
+
+    // Nursing Chart
+    vitalSigns: "Vital Signs",
+    addReading: "Add Reading",
+    temp: "Temp",
+    pulse: "P/Min",
+    bp: "B.P",
+    spo2: "SPO2",
+    bsl: "BSL",
+    ivFluids: "IV Fluids",
+    nameOfStaff: "Staff Name",
+
+    // Drug Orders
+    drugOrderSheet: "Drug Order Sheet",
+    drugAllergy: "Drug Allergy",
+    addDrug: "Add Drug",
+    drugName: "Drug Name",
+    frequency: "Frequency",
+    route: "Route",
+    startDate: "Start Date",
+    medOfficerSignature: "Medical Officer Signature",
+    day: "Day",
+    saveDrug: "Save Drug",
+    editCell: "Edit Times",
+    administrationTimes: "Administration Times",
+    timesPlaceholder: "e.g. 8AM,8PM or 8AM,2PM,8PM",
+
+    // Advice
+    patientAdvice: "Patient Advice",
+    addAdvice: "Add Advice",
+    category: "Category",
+    investigationName: "Investigation",
+    advisedBy: "Advised By",
+    status: "Status",
+    reportNotes: "Report Notes",
+
+    // PDF Export
+    exportIpdDocs: "Export IPD Documents",
+    progressReportPdf: "Progress Report PDF",
+    progressReportPdfDesc: "(includes Investigations/Advice box)",
+    nursingNotesPdf: "Nursing Notes PDF",
+    nursingChartPdf: "Nursing Chart PDF",
+    drugOrderPdf: "Drug Order Sheet PDF (Landscape)",
+    combinedPdf: "Complete IPD Package — All 4 Forms",
+
+    // IPD notifications
+    entrySaved: "Entry saved successfully",
+    entryUpdated: "Entry updated successfully",
+    entryDeleted: "Entry deleted successfully",
+    entryError: "Error saving entry",
+    deleteError2: "Error deleting entry",
+    deleteConfirm: "Are you sure you want to delete this entry?",
+    diagnosisSaved: "Diagnosis saved",
   },
+
+  
   
   mr: {
     // Header
@@ -201,5 +290,92 @@ export const translations = {
     loginError: "चुकीची माहिती",
     deleteSuccess: "रुग्ण यशस्वीरित्या हटवला",
     deleteError: "रुग्ण हटवताना त्रुटी",
-  }
+
+    // IPD Treatment Plan
+    ipdTreatment: "IPD उपचार",
+    ipdTreatmentDesc: "IPD उपचार योजना, औषध आदेश आणि नर्सिंग नोंदी व्यवस्थापित करा",
+    openIpd: "IPD उघडा",
+    changePatient: "रुग्ण बदला",
+    bedNo: "बेड क्र.",
+    progressReport: "प्रगती अहवाल",
+    nursingNotes: "नर्सिंग नोट्स",
+    nursingChart: "नर्सिंग चार्ट",
+    drugOrders: "औषध आदेश",
+    advice: "सल्ला",
+    exportPdf: "PDF निर्यात",
+
+    // Progress Report
+    diagnosis: "निदान / मुख्य तक्रार",
+    clinicalNotes: "क्लिनिकल नोट्स",
+    addEntry: "नोंद जोडा",
+    addClinicalNote: "क्लिनिकल नोट जोडा",
+    doctorNotes: "डॉक्टरांच्या नोट्स",
+    treatment: "उपचार",
+    staffName: "कर्मचाऱ्याचे नाव",
+    signingDoctor: "सही करणारे डॉक्टर",
+    admissionNote: "दाखल नोट",
+    saveEntry: "नोंद सेव्ह करा",
+    editEntry: "नोंद संपादित करा",
+
+    // Nursing Notes
+    addNote: "नोट जोडा",
+    addNursingNote: "नर्सिंग नोट जोडा",
+    notes: "नोट्स / दिलेले उपचार",
+    treatmentGiven: "दिलेले उपचार",
+    isHandover: "शिफ्ट हँडओव्हर",
+    handover: "हँडओव्हर",
+
+    // Nursing Chart
+    vitalSigns: "व्हायटल साइन्स",
+    addReading: "रीडिंग जोडा",
+    temp: "तापमान",
+    pulse: "नाडी/मिनिट",
+    bp: "रक्तदाब",
+    spo2: "SPO2",
+    bsl: "रक्तातील साखर",
+    ivFluids: "IV द्रव",
+    nameOfStaff: "कर्मचाऱ्याचे नाव",
+
+    // Drug Orders
+    drugOrderSheet: "औषध आदेश पत्रक",
+    drugAllergy: "औषध ऍलर्जी",
+    addDrug: "औषध जोडा",
+    drugName: "औषधाचे नाव",
+    frequency: "वारंवारता",
+    route: "मार्ग",
+    startDate: "सुरुवात तारीख",
+    medOfficerSignature: "वैद्यकीय अधिकाऱ्याची सही",
+    day: "दिवस",
+    saveDrug: "औषध सेव्ह करा",
+    editCell: "वेळ संपादित करा",
+    administrationTimes: "देण्याच्या वेळा",
+    timesPlaceholder: "उदा. 8AM,8PM",
+
+    // Advice
+    patientAdvice: "रुग्ण सल्ला",
+    addAdvice: "सल्ला जोडा",
+    category: "श्रेणी",
+    investigationName: "तपासणी",
+    advisedBy: "सल्ला दिले",
+    status: "स्थिती",
+    reportNotes: "अहवाल नोट्स",
+
+    // PDF Export
+    exportIpdDocs: "IPD कागदपत्रे निर्यात करा",
+    progressReportPdf: "प्रगती अहवाल PDF",
+    progressReportPdfDesc: "(तपासणी/सल्ला बॉक्ससह)",
+    nursingNotesPdf: "नर्सिंग नोट्स PDF",
+    nursingChartPdf: "नर्सिंग चार्ट PDF",
+    drugOrderPdf: "औषध आदेश पत्रक PDF",
+    combinedPdf: "संपूर्ण IPD पॅकेज — सर्व 4 फॉर्म",
+
+    // IPD notifications
+    entrySaved: "नोंद यशस्वीरित्या सेव्ह झाली",
+    entryUpdated: "नोंद अपडेट झाली",
+    entryDeleted: "नोंद हटवली",
+    entryError: "नोंद सेव्ह करताना त्रुटी",
+    deleteError2: "नोंद हटवताना त्रुटी",
+    deleteConfirm: "ही नोंद हटवायची आहे का?",
+    diagnosisSaved: "निदान सेव्ह झाले",
+  },
 }

@@ -1,5 +1,79 @@
 import { z } from 'zod'
 
+// ── IPD Treatment Plan schemas (§9 of spec) ──────────────────────────────────
+
+export const progressReportEntrySchema = z.object({
+  patientId:       z.string().min(1),
+  ipdNo:           z.string().min(1),
+  diagnosis:       z.string().optional(),
+  dateTime:        z.string().min(1, 'Date and time required'),
+  isAdmissionNote: z.boolean().default(false),
+  doctorNotes:     z.string().min(1, 'Notes are required'),
+  treatment:       z.string().optional(),
+  staffName:       z.string().min(1, 'Staff name required'),
+  doctorSignature: z.string().optional(),
+})
+
+export const nursingNoteSchema = z.object({
+  patientId:  z.string().min(1),
+  ipdNo:      z.string().min(1),
+  dateTime:   z.string().min(1),
+  notes:      z.string().min(1, 'Notes are required'),
+  treatment:  z.string().optional(),
+  staffName:  z.string().min(1),
+  isHandover: z.boolean().default(false),
+})
+
+export const vitalSignSchema = z.object({
+  patientId: z.string().min(1),
+  ipdNo:     z.string().min(1),
+  dateTime:  z.string().min(1),
+  temp:      z.string().optional(),
+  pulse:     z.string().optional(),
+  bp:        z.string().optional(),
+  spo2:      z.string().optional(),
+  bsl:       z.string().optional(),
+  ivFluids:  z.string().optional(),
+  staffName: z.string().min(1),
+}).refine(
+  (d) => [d.temp, d.pulse, d.bp, d.spo2].some((v) => v && v.trim() !== ''),
+  { message: 'At least one of Temp, Pulse, B.P, SPO2 is required' }
+)
+
+export const drugOrderSchema = z.object({
+  patientId:           z.string().min(1),
+  ipdNo:               z.string().min(1),
+  drugName:            z.string().min(1, 'Drug name required'),
+  drugAllergy:         z.string().optional(),
+  frequency:           z.enum(['BD', 'TDS', 'OD', 'STAT', 'SOS', 'QID', 'HS', '1-0-1', '2-2-2', 'Other']),
+  route:               z.enum(['IV', 'INJ (IM)', 'Oral (TAB)', 'Oral (SYP)', 'Oral (CAP)', 'Topical', 'SL', 'Other']),
+  startDate:           z.string().min(1),
+  days:                z.record(z.string(), z.string()).optional(),
+  medOfficerSignature: z.string().optional(),
+  ward:                z.string().optional(),
+  bedNo:               z.string().optional(),
+})
+
+export const patientAdviceSchema = z.object({
+  patientId:         z.string().min(1),
+  ipdNo:             z.string().min(1),
+  dateTime:          z.string().min(1),
+  category:          z.enum(['Blood Test', 'Urine Test', 'X-Ray', 'CT Scan', 'MRI', 'USG', 'ECG', 'Echo', 'Other']),
+  investigationName: z.string().min(1, 'Investigation name required'),
+  notes:             z.string().optional(),
+  advisedBy:         z.string().min(1),
+  status:            z.enum(['Pending', 'Done', 'Report Received']).default('Pending'),
+  reportNotes:       z.string().optional(),
+})
+
+export type ProgressReportEntryInput = z.infer<typeof progressReportEntrySchema>
+export type NursingNoteInput = z.infer<typeof nursingNoteSchema>
+export type VitalSignInput = z.infer<typeof vitalSignSchema>
+export type DrugOrderInput = z.infer<typeof drugOrderSchema>
+export type PatientAdviceInput = z.infer<typeof patientAdviceSchema>
+
+// ── Existing patient schemas ──────────────────────────────────────────────────
+
 // Raw form schema without transforms for form input
 export const patientFormSchema = z.object({
   ipdNo: z.string().min(1, 'IPD Number is required'),
@@ -27,6 +101,7 @@ export const patientFormSchema = z.object({
   treatingDoctor: z.string().nullable().optional().transform(val => val ?? null),
   dateOfDischarge: z.string().optional(),
   timeOfDischarge: z.string().nullable().optional().transform(val => val ?? null),
+  bedNo: z.string().nullable().optional().transform(val => val ?? null),
 }).refine((data) => {
   if (data.cashless) {
     return data.tpa;
@@ -72,6 +147,7 @@ export const patientSchema = z.object({
   treatingDoctor: z.string().nullable().optional().transform(val => val ?? null),
   dateOfDischarge: z.string().optional().transform((str) => str ? new Date(str) : undefined),
   timeOfDischarge: z.string().nullable().optional().transform(val => val ?? null),
+  bedNo: z.string().nullable().optional().transform(val => val ?? null),
 }).refine((data) => {
   if (data.cashless) {
     return data.tpa;

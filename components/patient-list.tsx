@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { translations } from '@/lib/translations'
 import { formatDate } from '@/lib/utils'
-import { Search, Download, Edit, Trash2, Eye, FileText } from 'lucide-react'
+import { Search, Download, Edit, Trash2, Eye, FileText, ClipboardList } from 'lucide-react'
+import type { SelectedPatient } from '@/lib/ipd-types'
 
 interface Patient {
   id: string
   ipdNo: string | null
+  uhidNo: string | null
   firstName: string
   middleName: string | null
   surname: string
@@ -19,6 +21,9 @@ interface Patient {
   age: number
   sex: 'M' | 'F'
   address: string
+  ward: string
+  treatingDoctor: string | null
+  bedNo: string | null
   dateOfAdmission: string
   admissions: any[]
   createdAt: string
@@ -26,9 +31,10 @@ interface Patient {
 
 interface PatientListProps {
   language: 'en' | 'mr'
+  onOpenIpd?: (patient: SelectedPatient) => void
 }
 
-export const PatientList = ({ language }: PatientListProps) => {
+export const PatientList = ({ language, onOpenIpd }: PatientListProps) => {
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -244,6 +250,30 @@ export const PatientList = ({ language }: PatientListProps) => {
                   
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
+                      {onOpenIpd && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onOpenIpd({
+                            id: patient.id,
+                            ipdNo: patient.ipdNo,
+                            uhidNo: patient.uhidNo,
+                            firstName: patient.firstName,
+                            middleName: patient.middleName,
+                            surname: patient.surname,
+                            age: patient.age,
+                            sex: patient.sex,
+                            ward: patient.ward,
+                            treatingDoctor: patient.treatingDoctor,
+                            bedNo: patient.bedNo,
+                          })}
+                          className="flex items-center gap-1 text-green-700 border-green-300 hover:bg-green-50"
+                        >
+                          <ClipboardList className="h-3 w-3" />
+                          {t.openIpd}
+                        </Button>
+                      )}
+
                       <Button
                         variant="outline"
                         size="sm"

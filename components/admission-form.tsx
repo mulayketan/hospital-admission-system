@@ -94,6 +94,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
         (typeof initialData.dateOfDischarge === 'string' ? initialData.dateOfDischarge : new Date(initialData.dateOfDischarge).toISOString().split('T')[0]) : 
         undefined,
       timeOfDischarge: initialData?.timeOfDischarge || null,
+      bedNo: initialData?.bedNo || null,
     }
   })
 
@@ -689,6 +690,15 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
             {errors.timeOfDischarge && (
               <p className="text-red-500 text-sm mt-1">{errors.timeOfDischarge.message}</p>
             )}
+          </div>
+
+          <div>
+            <Label htmlFor="bedNo">{t.bedNo}</Label>
+            <Input
+              id="bedNo"
+              {...register('bedNo')}
+              placeholder="e.g. Deluxe, Bed 3"
+            />
           </div>
         </div>
 
