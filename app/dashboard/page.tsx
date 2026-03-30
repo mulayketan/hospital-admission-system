@@ -8,17 +8,20 @@ import { Button } from '@/components/ui/button'
 import { AdmissionForm } from '@/components/admission-form'
 import { PatientList } from '@/components/patient-list'
 import { UserManagement } from '@/components/user-management'
+import { IpdTreatmentPanel } from '@/components/ipd-treatment-panel'
 import { translations } from '@/lib/translations'
 import { PatientInput } from '@/lib/validations'
-import { LogOut, Users, FileText, UserPlus, Download, Globe } from 'lucide-react'
+import { LogOut, Users, FileText, UserPlus, Download, Globe, ClipboardList } from 'lucide-react'
+import type { SelectedPatient } from '@/lib/ipd-types'
 
-type TabType = 'admission' | 'patients' | 'users'
+type TabType = 'admission' | 'patients' | 'ipd' | 'users'
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabType>('admission')
   const [language, setLanguage] = useState<'en' | 'mr'>('en')
+  const [selectedIpdPatient, setSelectedIpdPatient] = useState<SelectedPatient | null>(null)
 
   const t = translations[language]
 
@@ -64,6 +67,11 @@ export default function DashboardPage() {
       toast.error('Error searching patients')
       return []
     }
+  }
+
+  const handleOpenIpd = (patient: SelectedPatient) => {
+    setSelectedIpdPatient(patient)
+    setActiveTab('ipd')
   }
 
   const handleLogout = () => {
@@ -173,6 +181,20 @@ export default function DashboardPage() {
                 Patient Records
               </div>
             </button>
+
+            <button
+              onClick={() => setActiveTab('ipd')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'ipd'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4" />
+                {translations[language].ipdTreatment}
+              </div>
+            </button>
             
             {session.user?.role === 'ADMIN' && (
               <button
@@ -223,8 +245,16 @@ export default function DashboardPage() {
                 View and manage patient information
               </p>
             </div>
-            <PatientList language={language} />
+            <PatientList language={language} onOpenIpd={handleOpenIpd} />
           </div>
+        )}
+
+        {activeTab === 'ipd' && (
+          <IpdTreatmentPanel
+            selectedPatient={selectedIpdPatient}
+            onSelectPatient={setSelectedIpdPatient}
+            language={language}
+          />
         )}
 
         {activeTab === 'users' && session.user?.role === 'ADMIN' && (
