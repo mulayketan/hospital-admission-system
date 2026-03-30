@@ -37,6 +37,12 @@ const initSheetsClient = () => {
   }
 }
 
+const nowIST = (): string => {
+  const now = new Date()
+  const istDate = new Date(now.getTime() + 5.5 * 60 * 60 * 1000)
+  return istDate.toISOString().replace('Z', '+05:30')
+}
+
 async function createSheetTabs() {
   console.log('🚀 Creating Google Sheets tabs...')
 
@@ -55,7 +61,7 @@ async function createSheetTabs() {
     console.log('📋 Existing sheets:', existingSheets)
 
   const requiredSheets = [
-    'Users', 'Patients', 'WardCharges', 'Admissions',
+    'Users', 'Patients', 'WardCharges',
     'Medicines', 'Investigations',
     'ProgressReport', 'NursingNotes', 'NursingChart', 'DrugOrders', 'PatientAdvice',
   ]
@@ -145,7 +151,7 @@ async function createSheetTabs() {
   })
   if (!medicinesSheet.data.values?.[0]?.[0]) {
     console.log('💊 Pre-populating Medicines tab...')
-    const now = new Date().toISOString()
+    const now = nowIST()
     const medicines = [
       ['m01', 'INJ PAN', 'INJ', '40mg', 'BD', 'IV', now, now],
       ['m02', 'INJ C-ONE SB', 'INJ', '1.5gm', 'BD', 'IV', now, now],
@@ -182,7 +188,7 @@ async function createSheetTabs() {
   })
   if (!investigationsSheet.data.values?.[0]?.[0]) {
     console.log('🔬 Pre-populating Investigations tab...')
-    const now = new Date().toISOString()
+    const now = nowIST()
     const investigations = [
       // Blood Test
       ['i01', 'CBC', 'Blood Test', now, now],

@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'react-hot-toast'
-import bcrypt from 'bcryptjs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -59,18 +58,10 @@ export function UserManagement() {
 
   const handleCreateUser = async (data: UserInput) => {
     try {
-      // Hash password on client side before sending over network
-      const hashedPassword = await bcrypt.hash(data.password, 12)
-      
-      const secureData = {
-        ...data,
-        password: hashedPassword
-      }
-
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(secureData)
+        body: JSON.stringify(data)
       })
 
       if (!response.ok) {
@@ -92,21 +83,15 @@ export function UserManagement() {
     if (!editingUser) return
 
     try {
-      let secureData: Partial<UserInput> = { ...data }
-      
-      // Only hash password if it's being updated (not empty)
-      if (data.password && data.password.trim() !== '') {
-        secureData.password = await bcrypt.hash(data.password, 12)
-      } else {
-        // Remove password field if empty (don't update password)
-        const { password, ...dataWithoutPassword } = secureData
-        secureData = dataWithoutPassword
-      }
+      // Omit password from payload if left blank (keep existing hash on server)
+      const payload: Partial<UserInput> = data.password?.trim()
+        ? { ...data }
+        : (({ password, ...rest }) => rest)(data)
 
       const response = await fetch(`/api/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(secureData)
+        body: JSON.stringify(payload)
       })
 
       if (!response.ok) {

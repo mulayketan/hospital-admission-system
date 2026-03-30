@@ -148,7 +148,8 @@ export const findRowByValue = async (sheetName: string, searchValue: string, sea
 
 // Function to update a specific row
 export const updateRow = async (sheetName: string, rowNumber: number, values: any[]): Promise<void> => {
-  const range = `A${rowNumber}:${String.fromCharCode(65 + values.length - 1)}${rowNumber}`
+  const endCol = columnIndexToLetter(values.length - 1)
+  const range = `A${rowNumber}:${endCol}${rowNumber}`
   await writeSheet(sheetName, range, [values])
 }
 
@@ -198,4 +199,30 @@ const getSheetId = async (sheetName: string): Promise<number> => {
 // Utility function to generate unique IDs
 export const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2)
+}
+
+/**
+ * Converts a 0-based column index to an A1-notation column letter.
+ * Handles columns beyond Z correctly (e.g. 26 → AA, 27 → AB, 52 → BA).
+ */
+export const columnIndexToLetter = (index: number): string => {
+  let letter = ''
+  let n = index + 1
+  while (n > 0) {
+    const remainder = (n - 1) % 26
+    letter = String.fromCharCode(65 + remainder) + letter
+    n = Math.floor((n - 1) / 26)
+  }
+  return letter
+}
+
+/**
+ * Returns the current time as an ISO 8601 string with IST offset (+05:30).
+ * Use this for all createdAt / updatedAt fields stored in Google Sheets.
+ */
+export const nowIST = (): string => {
+  const now = new Date()
+  const istOffset = 5.5 * 60 * 60 * 1000
+  const istDate = new Date(now.getTime() + istOffset)
+  return istDate.toISOString().replace('Z', '+05:30')
 }

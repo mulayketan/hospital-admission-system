@@ -243,9 +243,6 @@ export const PatientList = ({ language, onOpenIpd }: PatientListProps) => {
                     <div className="text-sm text-gray-900">
                       {formatDate(patient.dateOfAdmission)}
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {patient.admissions.length} admission(s)
-                    </div>
                   </td>
                   
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

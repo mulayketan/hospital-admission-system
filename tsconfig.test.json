@@ -7,5 +7,5 @@
     "jsx": "react-jsx",
     "noEmit": true
   },
-  "include": ["__tests__/**/*.ts", "__tests__/**/*.tsx", "lib/**/*.ts", "app/**/*.ts", "app/**/*.tsx"]
+  "include": ["__tests__/**/*.ts", "__tests__/**/*.tsx", "lib/**/*.ts", "app/**/*.ts", "app/**/*.tsx", "types/**/*.d.ts"]
 }

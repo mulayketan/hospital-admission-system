@@ -6,6 +6,7 @@ import {
   updateRow, 
   deleteRow, 
   generateId,
+  nowIST,
   SHEET_NAMES 
 } from './google-sheets'
 
@@ -244,7 +245,7 @@ export class UserModel {
   }
   
   static async create(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
-    const now = new Date().toISOString()
+    const now = nowIST()
     const user: User = {
       id: generateId(),
       ...userData,
@@ -274,7 +275,7 @@ export class UserModel {
       const updatedUser: User = {
         ...existingUser,
         ...userData,
-        updatedAt: new Date().toISOString()
+        updatedAt: nowIST()
       }
       
       // Password is already hashed from client side if provided
@@ -411,7 +412,7 @@ export class PatientModel {
   }
   
   static async create(patientData: Omit<Patient, 'id' | 'createdAt' | 'updatedAt' | 'bedNo' | 'createdByUserId'> & { bedNo?: string | null; createdByUserId?: string | null }): Promise<Patient> {
-    const now = new Date().toISOString()
+    const now = nowIST()
     const patient: Patient = {
       id: generateId(),
       ...patientData,
@@ -438,7 +439,7 @@ export class PatientModel {
       const updated: Patient = {
         ...existing,
         ...updateData,
-        updatedAt: new Date().toISOString()
+        updatedAt: nowIST()
       }
       
       const row = this.patientToRow(updated)
@@ -658,9 +659,9 @@ export class TPAModel {
       console.error('Error finding TPAs:', error)
       // Return some default TPA options if sheet is not accessible
       return [
-        { id: 'tpa1', name: 'Star Health Insurance', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-        { id: 'tpa2', name: 'ICICI Lombard', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-        { id: 'tpa3', name: 'HDFC ERGO', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        { id: 'tpa1', name: 'Star Health Insurance', createdAt: nowIST(), updatedAt: nowIST() },
+        { id: 'tpa2', name: 'ICICI Lombard', createdAt: nowIST(), updatedAt: nowIST() },
+        { id: 'tpa3', name: 'HDFC ERGO', createdAt: nowIST(), updatedAt: nowIST() }
       ]
     }
   }
@@ -683,8 +684,8 @@ export class TPAModel {
     return {
       id,
       name,
-      createdAt: tpa.createdAt || new Date().toISOString(),
-      updatedAt: tpa.updatedAt || new Date().toISOString()
+      createdAt: tpa.createdAt || nowIST(),
+      updatedAt: tpa.updatedAt || nowIST()
     }
   }
 }
@@ -713,9 +714,9 @@ export class InsuranceCompanyModel {
       console.error('Error finding insurance companies:', error)
       // Return some default insurance options if sheet is not accessible
       return [
-        { id: 'ins1', name: 'LIC of India', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-        { id: 'ins2', name: 'SBI General Insurance', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-        { id: 'ins3', name: 'New India Assurance', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        { id: 'ins1', name: 'LIC of India', createdAt: nowIST(), updatedAt: nowIST() },
+        { id: 'ins2', name: 'SBI General Insurance', createdAt: nowIST(), updatedAt: nowIST() },
+        { id: 'ins3', name: 'New India Assurance', createdAt: nowIST(), updatedAt: nowIST() }
       ]
     }
   }
@@ -738,8 +739,8 @@ export class InsuranceCompanyModel {
     return {
       id,
       name,
-      createdAt: company.createdAt || new Date().toISOString(),
-      updatedAt: company.updatedAt || new Date().toISOString()
+      createdAt: company.createdAt || nowIST(),
+      updatedAt: company.updatedAt || nowIST()
     }
   }
 }
@@ -855,7 +856,7 @@ export class ProgressReportModel {
   }
 
   static async create(entryData: Omit<ProgressReportEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<ProgressReportEntry> {
-    const now = new Date().toISOString()
+    const now = nowIST()
     const entry: ProgressReportEntry = {
       id: generateId(),
       ...entryData,
@@ -878,7 +879,7 @@ export class ProgressReportModel {
         ...existing,
         ...updateData,
         id: existing.id,
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowIST(),
       }
       await updateRow(SHEET_NAMES.PROGRESS_REPORT, rowIndex + 1, this.entryToRow(updated))
       return updated
@@ -974,7 +975,7 @@ export class NursingNotesModel {
   }
 
   static async create(noteData: Omit<NursingNote, 'id' | 'createdAt' | 'updatedAt'>): Promise<NursingNote> {
-    const now = new Date().toISOString()
+    const now = nowIST()
     const note: NursingNote = { id: generateId(), ...noteData, createdAt: now, updatedAt: now }
     await appendSheet(SHEET_NAMES.NURSING_NOTES, [this.noteToRow(note)])
     return note
@@ -988,7 +989,7 @@ export class NursingNotesModel {
       const rowIndex = data.findIndex(r => r[0] === id)
       if (rowIndex === -1) return null
       const existing = this.rowToNote(headers, data[rowIndex])
-      const updated: NursingNote = { ...existing, ...updateData, id: existing.id, updatedAt: new Date().toISOString() }
+      const updated: NursingNote = { ...existing, ...updateData, id: existing.id, updatedAt: nowIST() }
       await updateRow(SHEET_NAMES.NURSING_NOTES, rowIndex + 1, this.noteToRow(updated))
       return updated
     } catch (error) {
@@ -1079,7 +1080,7 @@ export class NursingChartModel {
   }
 
   static async create(vitalData: Omit<VitalSign, 'id' | 'createdAt' | 'updatedAt'>): Promise<VitalSign> {
-    const now = new Date().toISOString()
+    const now = nowIST()
     const vital: VitalSign = { id: generateId(), ...vitalData, createdAt: now, updatedAt: now }
     await appendSheet(SHEET_NAMES.NURSING_CHART, [this.vitalToRow(vital)])
     return vital
@@ -1093,7 +1094,7 @@ export class NursingChartModel {
       const rowIndex = data.findIndex(r => r[0] === id)
       if (rowIndex === -1) return null
       const existing = this.rowToVital(headers, data[rowIndex])
-      const updated: VitalSign = { ...existing, ...updateData, id: existing.id, updatedAt: new Date().toISOString() }
+      const updated: VitalSign = { ...existing, ...updateData, id: existing.id, updatedAt: nowIST() }
       await updateRow(SHEET_NAMES.NURSING_CHART, rowIndex + 1, this.vitalToRow(updated))
       return updated
     } catch (error) {
@@ -1195,7 +1196,7 @@ export class DrugOrderModel {
   }
 
   static async create(orderData: Omit<DrugOrder, 'id' | 'createdAt' | 'updatedAt'>): Promise<DrugOrder> {
-    const now = new Date().toISOString()
+    const now = nowIST()
     const order: DrugOrder = { id: generateId(), ...orderData, createdAt: now, updatedAt: now }
     await appendSheet(SHEET_NAMES.DRUG_ORDERS, [this.drugOrderToRow(order)])
     return order
@@ -1214,7 +1215,7 @@ export class DrugOrderModel {
         ...updateData,
         id: existing.id,
         days: { ...existing.days, ...(updateData.days || {}) },
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowIST(),
       }
       await updateRow(SHEET_NAMES.DRUG_ORDERS, rowIndex + 1, this.drugOrderToRow(updated))
       return updated
@@ -1327,7 +1328,7 @@ export class PatientAdviceModel {
   }
 
   static async create(adviceData: Omit<PatientAdvice, 'id' | 'createdAt' | 'updatedAt'>): Promise<PatientAdvice> {
-    const now = new Date().toISOString()
+    const now = nowIST()
     const advice: PatientAdvice = { id: generateId(), ...adviceData, createdAt: now, updatedAt: now }
     await appendSheet(SHEET_NAMES.PATIENT_ADVICE, [this.adviceToRow(advice)])
     return advice
@@ -1341,7 +1342,7 @@ export class PatientAdviceModel {
       const rowIndex = data.findIndex(r => r[0] === id)
       if (rowIndex === -1) return null
       const existing = this.rowToAdvice(headers, data[rowIndex])
-      const updated: PatientAdvice = { ...existing, ...updateData, id: existing.id, updatedAt: new Date().toISOString() }
+      const updated: PatientAdvice = { ...existing, ...updateData, id: existing.id, updatedAt: nowIST() }
       await updateRow(SHEET_NAMES.PATIENT_ADVICE, rowIndex + 1, this.adviceToRow(updated))
       return updated
     } catch (error) {

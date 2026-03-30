@@ -24,7 +24,7 @@ export const nursingNoteSchema = z.object({
   isHandover: z.boolean().default(false),
 })
 
-export const vitalSignSchema = z.object({
+export const vitalSignBaseSchema = z.object({
   patientId: z.string().min(1),
   ipdNo:     z.string().min(1),
   dateTime:  z.string().min(1),
@@ -35,7 +35,9 @@ export const vitalSignSchema = z.object({
   bsl:       z.string().optional(),
   ivFluids:  z.string().optional(),
   staffName: z.string().min(1),
-}).refine(
+})
+
+export const vitalSignSchema = vitalSignBaseSchema.refine(
   (d) => [d.temp, d.pulse, d.bp, d.spo2].some((v) => v && v.trim() !== ''),
   { message: 'At least one of Temp, Pulse, B.P, SPO2 is required' }
 )
@@ -68,6 +70,7 @@ export const patientAdviceSchema = z.object({
 
 export type ProgressReportEntryInput = z.infer<typeof progressReportEntrySchema>
 export type NursingNoteInput = z.infer<typeof nursingNoteSchema>
+export type VitalSignBaseInput = z.infer<typeof vitalSignBaseSchema>
 export type VitalSignInput = z.infer<typeof vitalSignSchema>
 export type DrugOrderInput = z.infer<typeof drugOrderSchema>
 export type PatientAdviceInput = z.infer<typeof patientAdviceSchema>

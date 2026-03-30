@@ -23,10 +23,7 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json({
-      patients: patients.map(patient => ({
-        ...patient,
-        admissions: [] // Add empty admissions array for compatibility
-      })),
+      patients,
       pagination: {
         total,
         page,
@@ -62,10 +59,7 @@ export async function POST(request: NextRequest) {
       createdByUserId: session.user.id ?? null,
     })
 
-    return NextResponse.json({
-      ...patient,
-      admissions: [] // Add empty admissions array for compatibility
-    }, { status: 201 })
+    return NextResponse.json(patient, { status: 201 })
   } catch (error) {
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
