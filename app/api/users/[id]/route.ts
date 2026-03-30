@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
 import { UserModel } from '@/lib/sheets-models'
 import { userSchema } from '@/lib/validations'
@@ -21,8 +22,12 @@ export async function PUT(
     const updateSchema = userSchema.partial()
     const validatedData = updateSchema.parse(body)
 
-    // Password is already hashed from client side if provided
-    const updatedUser = await UserModel.update(id, validatedData)
+    // Hash password server-side if provided (Bug #3 fix)
+    const updatePayload = { ...validatedData }
+    if (updatePayload.password) {
+      updatePayload.password = await bcrypt.hash(updatePayload.password, 12)
+    }
+    const updatedUser = await UserModel.update(id, updatePayload)
     
     if (!updatedUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
