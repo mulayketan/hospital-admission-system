@@ -61,7 +61,7 @@ function ensureSparticuzAwsBundle(): void {
   console.log('[browser] Set AWS_EXECUTION_ENV so @sparticuz/chromium extracts aws.tar.br')
 }
 
-/** AWS tarball ships libnss3 but not NSPR / smime / ssl NSS libs — those come from the OS. */
+/** AWS tarball ships libnss3 but not NSPR / NSS peers — see lib/serverless-nss/. */
 const AWS_LIB_DIR = '/tmp/aws/lib'
 const SYSTEM_LIB_DIRS = [
   '/usr/lib64',
@@ -70,8 +70,19 @@ const SYSTEM_LIB_DIRS = [
   '/lib/x86_64-linux-gnu',
   '/usr/lib',
 ]
-/** Unversioned names loaded by NSS stack; Vercel AL2 often only has libfoo.so.Nd. */
 const OS_NSS_BRIDGE_BASES = ['libnspr4', 'libplc4', 'libplds4', 'libsmime3', 'libssl3'] as const
+
+function bundledNssDir(): string {
+  return path.join(process.cwd(), 'lib', 'serverless-nss')
+}
+
+/** Vendored from amazonlinux:2023 (x86_64) — Vercel Node 20/22 images omit these libraries. */
+function resolveBundledNssDir(): string | null {
+  const dir = bundledNssDir()
+  if (!existsSync(dir)) return null
+  if (!existsSync(path.join(dir, 'libnspr4.so'))) return null
+  return dir
+}
 
 function findSystemSharedObject(baseName: string): string | null {
   for (const dir of SYSTEM_LIB_DIRS) {
@@ -97,16 +108,23 @@ function findSystemSharedObject(baseName: string): string | null {
   return candidates[0]
 }
 
-/** Add unversioned symlinks into /tmp/aws/lib so DT_NEEDED names resolve (libnspr4.so, …). */
-function bridgeOsLibsIntoAwsBundle(): void {
+/**
+ * Copy NSPR/NSS deps into /tmp/aws/lib so DT_NEEDED resolves alongside bundled libnss3.so.
+ * Prefer files from lib/serverless-nss; else symlinks from OS paths (versioned OK as target).
+ */
+function bridgeOsLibsIntoAwsBundle(bundledDir: string | null): void {
   if (!existsSync(AWS_LIB_DIR)) return
   for (const base of OS_NSS_BRIDGE_BASES) {
     const dest = path.join(AWS_LIB_DIR, `${base}.so`)
     try {
       if (existsSync(dest)) continue
-      const src = findSystemSharedObject(base)
+      const vendored = bundledDir ? path.join(bundledDir, `${base}.so`) : null
+      const src =
+        vendored && existsSync(vendored)
+          ? vendored
+          : findSystemSharedObject(base)
       if (!src) {
-        console.warn(`[browser] No system ${base}.so* — Chromium may fail to launch`)
+        console.warn(`[browser] Missing ${base}.so (no vendored or system libs)`)
         continue
       }
       symlinkSync(src, dest)
@@ -117,8 +135,9 @@ function bridgeOsLibsIntoAwsBundle(): void {
   }
 }
 
-function productionLibraryPath(): string {
+function productionLibraryPath(bundledDir: string | null): string {
   const parts = [
+    bundledDir,
     AWS_LIB_DIR,
     '/usr/lib64',
     '/lib64',
@@ -158,10 +177,16 @@ export const getBrowser = async (): Promise<Browser> => {
     ensureSparticuzAwsBundle()
     const chromium = (await import('@sparticuz/chromium')).default
     const executablePath = await chromium.executablePath()
-    bridgeOsLibsIntoAwsBundle()
+    const bundled = resolveBundledNssDir()
+    if (!bundled) {
+      console.warn(
+        '[browser] lib/serverless-nss not found or incomplete — NSPR/NSS copy from amazonlinux:2023 required for minimal hosts'
+      )
+    }
+    bridgeOsLibsIntoAwsBundle(bundled)
     const launchEnv = {
       ...process.env,
-      LD_LIBRARY_PATH: productionLibraryPath(),
+      LD_LIBRARY_PATH: productionLibraryPath(bundled),
     }
     browserInstance = await puppeteer.launch({
       env: launchEnv,
