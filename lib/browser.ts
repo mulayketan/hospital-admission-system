@@ -61,8 +61,17 @@ function ensureSparticuzAwsBundle(): void {
   console.log('[browser] Set AWS_EXECUTION_ENV so @sparticuz/chromium extracts aws.tar.br')
 }
 
-/** AWS tarball ships libnss3 but not NSPR / NSS peers — see lib/serverless-nss/. */
+/**
+ * Default extract dir for aws.tar.br (NSS .so next to inflated chromium).
+ * Same as path.join(path.dirname(executablePath), 'aws', 'lib') when exe is /tmp/chromium.
+ * Note: setting LD_LIBRARY_PATH only to path.dirname(executablePath) (/tmp) does *not*
+ * expose these libs — they live under aws/lib/, not beside the binary.
+ */
 const AWS_LIB_DIR = '/tmp/aws/lib'
+
+function awsLibDirFromExecutable(executablePath: string): string {
+  return path.join(path.dirname(executablePath), 'aws', 'lib')
+}
 const SYSTEM_LIB_DIRS = [
   '/usr/lib64',
   '/lib64',
@@ -112,10 +121,10 @@ function findSystemSharedObject(baseName: string): string | null {
  * Copy NSPR/NSS deps into /tmp/aws/lib so DT_NEEDED resolves alongside bundled libnss3.so.
  * Prefer files from lib/serverless-nss; else symlinks from OS paths (versioned OK as target).
  */
-function bridgeOsLibsIntoAwsBundle(bundledDir: string | null): void {
-  if (!existsSync(AWS_LIB_DIR)) return
+function bridgeOsLibsIntoAwsBundle(bundledDir: string | null, awsLibDir: string): void {
+  if (!existsSync(awsLibDir)) return
   for (const base of OS_NSS_BRIDGE_BASES) {
-    const dest = path.join(AWS_LIB_DIR, `${base}.so`)
+    const dest = path.join(awsLibDir, `${base}.so`)
     try {
       if (existsSync(dest)) continue
       const vendored = bundledDir ? path.join(bundledDir, `${base}.so`) : null
@@ -135,10 +144,16 @@ function bridgeOsLibsIntoAwsBundle(bundledDir: string | null): void {
   }
 }
 
-function productionLibraryPath(bundledDir: string | null): string {
+function productionLibraryPath(
+  bundledDir: string | null,
+  executablePath: string
+): string {
+  const awsLib = awsLibDirFromExecutable(executablePath)
   const parts = [
     bundledDir,
+    awsLib,
     AWS_LIB_DIR,
+    path.dirname(executablePath),
     '/usr/lib64',
     '/lib64',
     '/usr/lib/x86_64-linux-gnu',
@@ -177,16 +192,18 @@ export const getBrowser = async (): Promise<Browser> => {
     ensureSparticuzAwsBundle()
     const chromium = (await import('@sparticuz/chromium')).default
     const executablePath = await chromium.executablePath()
+    const awsLib = awsLibDirFromExecutable(executablePath)
     const bundled = resolveBundledNssDir()
     if (!bundled) {
       console.warn(
         '[browser] lib/serverless-nss not found or incomplete — NSPR/NSS copy from amazonlinux:2023 required for minimal hosts'
       )
     }
-    bridgeOsLibsIntoAwsBundle(bundled)
+    bridgeOsLibsIntoAwsBundle(bundled, awsLib)
     const launchEnv = {
       ...process.env,
-      LD_LIBRARY_PATH: productionLibraryPath(bundled),
+      // Force loader paths: bundled NSPR, aws.tar.br NSS, binary dir (Gemini-style), then OS.
+      LD_LIBRARY_PATH: productionLibraryPath(bundled, executablePath),
     }
     browserInstance = await puppeteer.launch({
       env: launchEnv,
