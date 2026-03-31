@@ -10,6 +10,8 @@
 import puppeteer from 'puppeteer-core'
 import type { Browser } from 'puppeteer-core'
 import fs from 'fs/promises'
+import { existsSync, readdirSync, symlinkSync } from 'fs'
+import path from 'node:path'
 
 let browserInstance: Browser | null = null
 let browserLastUsed = 0
@@ -59,6 +61,79 @@ function ensureSparticuzAwsBundle(): void {
   console.log('[browser] Set AWS_EXECUTION_ENV so @sparticuz/chromium extracts aws.tar.br')
 }
 
+/** AWS tarball ships libnss3 but not NSPR / smime / ssl NSS libs — those come from the OS. */
+const AWS_LIB_DIR = '/tmp/aws/lib'
+const SYSTEM_LIB_DIRS = [
+  '/usr/lib64',
+  '/lib64',
+  '/usr/lib/x86_64-linux-gnu',
+  '/lib/x86_64-linux-gnu',
+  '/usr/lib',
+]
+/** Unversioned names loaded by NSS stack; Vercel AL2 often only has libfoo.so.Nd. */
+const OS_NSS_BRIDGE_BASES = ['libnspr4', 'libplc4', 'libplds4', 'libsmime3', 'libssl3'] as const
+
+function findSystemSharedObject(baseName: string): string | null {
+  for (const dir of SYSTEM_LIB_DIRS) {
+    const exact = path.join(dir, `${baseName}.so`)
+    if (existsSync(exact)) return exact
+  }
+  const candidates: string[] = []
+  for (const dir of SYSTEM_LIB_DIRS) {
+    let entries: string[]
+    try {
+      entries = readdirSync(dir)
+    } catch {
+      continue
+    }
+    for (const name of entries) {
+      if (name === `${baseName}.so` || name.startsWith(`${baseName}.so.`)) {
+        candidates.push(path.join(dir, name))
+      }
+    }
+  }
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => b.length - a.length)
+  return candidates[0]
+}
+
+/** Add unversioned symlinks into /tmp/aws/lib so DT_NEEDED names resolve (libnspr4.so, …). */
+function bridgeOsLibsIntoAwsBundle(): void {
+  if (!existsSync(AWS_LIB_DIR)) return
+  for (const base of OS_NSS_BRIDGE_BASES) {
+    const dest = path.join(AWS_LIB_DIR, `${base}.so`)
+    try {
+      if (existsSync(dest)) continue
+      const src = findSystemSharedObject(base)
+      if (!src) {
+        console.warn(`[browser] No system ${base}.so* — Chromium may fail to launch`)
+        continue
+      }
+      symlinkSync(src, dest)
+      console.log(`[browser] NSS bridge: ${dest} -> ${src}`)
+    } catch (e) {
+      console.warn(`[browser] NSS bridge failed for ${base}`, e)
+    }
+  }
+}
+
+function productionLibraryPath(): string {
+  const parts = [
+    AWS_LIB_DIR,
+    '/usr/lib64',
+    '/lib64',
+    '/usr/lib/x86_64-linux-gnu',
+    '/lib/x86_64-linux-gnu',
+    process.env.LD_LIBRARY_PATH,
+  ].filter(Boolean) as string[]
+  const ordered: string[] = []
+  for (const seg of parts.join(':').split(':')) {
+    if (!seg || ordered.includes(seg)) continue
+    ordered.push(seg)
+  }
+  return ordered.join(':')
+}
+
 /** Returns a running (or recycled) browser instance. */
 export const getBrowser = async (): Promise<Browser> => {
   const now = Date.now()
@@ -83,7 +158,13 @@ export const getBrowser = async (): Promise<Browser> => {
     ensureSparticuzAwsBundle()
     const chromium = (await import('@sparticuz/chromium')).default
     const executablePath = await chromium.executablePath()
+    bridgeOsLibsIntoAwsBundle()
+    const launchEnv = {
+      ...process.env,
+      LD_LIBRARY_PATH: productionLibraryPath(),
+    }
     browserInstance = await puppeteer.launch({
+      env: launchEnv,
       args: [...chromium.args, ...BASE_ARGS, '--disable-features=VizDisplayCompositor'],
       defaultViewport: chromium.defaultViewport,
       executablePath,
