@@ -36,13 +36,10 @@ export async function PUT(
     return NextResponse.json(updated)
   } catch (error) {
     if (error instanceof ZodError) {
-        return NextResponse.json(zodErrorBody(error), { status: 400 })
-      }
-      if (error instanceof Error) {
-        return NextResponse.json({ error: error.message }, { status: 400 })
-      }
+      return NextResponse.json(zodErrorBody(error), { status: 400 })
+    }
     console.error('Error updating patient advice:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to update entry' }, { status: 503 })
   }
 }
 

@@ -27,7 +27,7 @@ export const NursingNotesView = ({ patient, language }: NursingNotesViewProps) =
       const res = await fetch(`/api/ipd/nursing-notes?patientId=${patient.id}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setNotes(data.notes ?? data ?? [])
+      setNotes(Array.isArray(data) ? data : [])
     } catch {
       toast.error('Error loading nursing notes')
     } finally {

@@ -8,7 +8,7 @@
 import dotenv from 'dotenv'
 
 // Load environment variables
-dotenv.config()
+dotenv.config({ path: '.env.local' })
 
 function checkEnvironment() {
   console.log('🔍 Checking Google Sheets Environment Configuration...\n')

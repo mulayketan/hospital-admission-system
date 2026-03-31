@@ -123,6 +123,8 @@ export const NursingNoteForm = ({
       <div>
         <Label>{t.notes}</Label>
         <textarea
+          data-gramm="false"
+          data-gramm_editor="false"
           {...register('notes')}
           rows={3}
           className={`w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 ${
@@ -136,6 +138,8 @@ export const NursingNoteForm = ({
       <div>
         <Label>{t.treatmentGiven}</Label>
         <textarea
+          data-gramm="false"
+          data-gramm_editor="false"
           {...register('treatment')}
           rows={2}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"

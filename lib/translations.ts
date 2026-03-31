@@ -192,7 +192,7 @@ export const translations = {
   
   mr: {
     // Header
-    hospitalName: "झावर हॉस्पिटल",
+    hospitalName: "झंवर हॉस्पिटल",
     registrationAdmission: "नोंदणी व दाखल",
     
     // Form Fields

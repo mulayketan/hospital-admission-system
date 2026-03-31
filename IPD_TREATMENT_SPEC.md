@@ -2,9 +2,9 @@
 
 **Project:** Zawar Hospital Admission System  
 **Feature:** IPD Treatment Plan Data Entry + PDF Export  
-**Version:** 2.2.1 (micro-fixes: scope, sheet count, treatingDoctor)  
+**Version:** 2.3.0 (post-implementation: PDF layout, multi-select investigations, form fixes)  
 **Date:** March 30, 2026  
-**Status:** Ready for Development — All decisions resolved
+**Status:** Implemented — Updated to reflect actual built behaviour
 
 ---
 
@@ -296,7 +296,7 @@ One row per investigation advised to the patient.
 | C | `ipdNo` | |
 | D | `dateTime` | ISO 8601 IST |
 | E | `category` | One of the canonical Investigation Category values (§2.7): `Blood Test` / `Urine Test` / `X-Ray` / `CT Scan` / `MRI` / `USG` / `ECG` / `Echo` / `Other` |
-| F | `investigationName` | Specific test; from `Investigations` dropdown or free text fallback |
+| F | `investigationName` | **Comma-separated list** of selected tests (e.g. `"CBC, LFT, KFT"`). Multiple investigations selected via multi-select UI per entry; stored as one comma-separated string. |
 | G | `notes` | Additional instruction (e.g. `fasting`, `with contrast`) |
 | H | `advisedBy` | Doctor name |
 | I | `status` | `Pending` / `Done` / `Report Received` |
@@ -533,32 +533,40 @@ Medical Officer Signature: [_______________________]
 ```
 PATIENT ADVICE                                      [+ Add Advice]
 
-┌──────────┬─────────────┬───────────────────┬──────────┬──────────┬─────────┐
-│ Date &   │ Category    │ Investigation     │ Advised  │ Status   │ Actions │
-│ Time     │             │                   │ By       │          │         │
-├──────────┼─────────────┼───────────────────┼──────────┼──────────┼─────────┤
-│ 23/3/26  │ Blood Test  │ CBC               │ Dr. Des. │[Pending▾]│  ✏  🗑 │
-│ 9 PM     │ Blood Test  │ RA Factor         │ Dr. Des. │[Done   ▾]│  ✏  🗑 │
-│ 9 PM     │ CT Scan     │ CT Brain          │ Dr. Des. │[Pending▾]│  ✏  🗑 │
-└──────────┴─────────────┴───────────────────┴──────────┴──────────┴─────────┘
+┌──────────┬─────────────┬───────────────────────────┬──────────┬──────────┬─────────┐
+│ Date &   │ Category    │ Investigation             │ Advised  │ Status   │ Actions │
+│ Time     │             │ (multi-select badges)     │ By       │          │         │
+├──────────┼─────────────┼───────────────────────────┼──────────┼──────────┼─────────┤
+│ 31/3/26  │ Blood Test  │ [CBC] [LFT] [KFT] [HbA1c] │ Dr. Zawr │[Pending▾]│  ✏  🗑 │
+│ 11:53AM  │ Blood Test  │ [CBC]                     │ Dr. Zawr │[Done   ▾]│  ✏  🗑 │
+└──────────┴─────────────┴───────────────────────────┴──────────┴──────────┴─────────┘
 ```
 
-Add Advice Form: Date/Time · Category (§2.7 dropdown) · Investigation (filtered by category; free text fallback) · Notes · Advised By · Status
+**Add Advice Form fields:**
+- Date / Time
+- Category — §2.7 dropdown
+- Investigation — **multi-select** filtered by category; multiple tests can be selected per entry (e.g. CBC + LFT + KFT in one save). Values stored as comma-separated string in `investigationName`.
+- Notes (optional) — e.g. "fasting, with contrast"
+- Advised By — doctor name
+- Status — native `<select>`: `Pending` / `Done` / `Report Received`
+- Report Notes — visible only when Status = Done / Report Received
+
+**Error handling:** API validation errors are shown as an inline red banner inside the form (above the action buttons) in addition to a toast notification. This ensures errors are never missed regardless of toast position or timing.
 
 ### 7.8 Export PDF Panel
 
 ```
 ┌──────────────────────────────────────────────┐
-│  Export IPD Documents — Bharatkumar Jangid   │
-├──────────────────────────────────────────────┤
-│  [↓ Progress Report PDF]                     │
-│     (includes Investigations/Advice box)     │
-│  [↓ Nursing Notes PDF]                       │
-│  [↓ Nursing Chart PDF]                       │
-│  [↓ Drug Order Sheet PDF (Landscape)]        │
-│  ────────────────────────────────────        │
-│  [↓ Complete IPD Package — All 4 Forms]      │
-└──────────────────────────────────────────────┘
+│  Export IPD Documents — Bharatkumar Jangid       │
+├──────────────────────────────────────────────────┤
+│  [↓ Progress Report PDF]                         │
+│     (includes Investigations/Advice box)         │
+│  [↓ Nursing Notes PDF]                           │
+│  [↓ Nursing Chart PDF]                           │
+│  [↓ Drug Order Sheet PDF (Portrait)]             │
+│  ────────────────────────────────────            │
+│  [↓ Complete IPD Package — All 4 Forms]          │
+└──────────────────────────────────────────────────┘
 ```
 
 ---
@@ -603,7 +611,7 @@ All PDFs must match the physical Zawar Hospital form layout exactly, for printin
 
 ### 8.3 Nursing Chart PDF
 
-- **Page:** A4, landscape
+- **Page:** A4, **portrait** (changed from landscape — matches physical A4 form)
 - **Header:** "NURSING CHART" badge · ZH logo · "Zawar Hospital"
 - **Patient strip:** `Patient Name` · `Age` · `IPD No.` · `Sex M/F`
 - **Table:** DATE/TIME · TEMP · P/MIN · B.P · SPO2 · BSL · IV FLUIDS · NAME OF STAFF
@@ -611,21 +619,32 @@ All PDFs must match the physical Zawar Hospital form layout exactly, for printin
 
 ### 8.4 Drug Order Sheet PDF
 
-- **Page:** A4, landscape
-- **Header:** ZH logo + Marathi hospital name (centre) · "ORDER SHEET" (right)
-- **Patient strip (left column, vertical):** Patient Name · Drug Allergy · Age · Sex M/F · Ward · Room/Bed No. · IPD No. — all from denormalised columns on `DrugOrders` row
-- **Table:** # · Name of Drug · Freq. · Route · Start Date · Day columns (each column = one calendar date, DD/MM format; times stacked in cell)
-  - Page 1: days 1–15; Page 2 ("PTO"): days 16–36
-- **Footer:** Medical Officer Signature block (name, qualifications, reg no)
+- **Page:** A4, **portrait** (changed from landscape — matches physical form proportions)
+- **Document title:** `"Order Sheet — <Patient Full Name>"` (visible in PDF viewer)
+- **Header:** ZH logo + Marathi hospital name `झंवर हॉस्पिटल` (centre) · "ORDER SHEET" badge (right)
+  - Marathi text rendered using embedded Noto Sans Devanagari font (base64 TTF `@font-face`) for reliable headless Chrome rendering
+  - Logo loaded from `public/images/zh-logo.svg` as inline base64 data URI
+- **Patient strip (horizontal row below header):** Full-width flex bar with bordered cells — Patient Name · Drug Allergy · Age · Sex M/F · Ward · Room/Bed No. · IPD No.
+  - Drug Allergy cell is **blank** if not entered (no default value; never shows "NKDA" unless explicitly stored)
+  - All values sourced from denormalised columns on `DrugOrders` row
+- **Table columns:** Name of Drug · Freq. · Route · Date: (×7 blank date columns)
+  - Columns removed: `#` (row number) and `Start Date` — not on physical form
+  - Date column headers show only `"Date:"` with a blank writeable line — **staff fills the actual date on the printed paper**. No computed dates are pre-printed.
+  - 7 date columns per page (matches portrait A4 proportions)
+  - Page 1: columns 1–7; Page 2 ("PTO"): columns 8–14 if any day8–day14 data exists; Page 3: 15–21 if needed
+  - Drug administration times (comma-separated) are still rendered in cells in the correct day-order sequence
+- **Footer:** Medical Officer Signature block (bottom-left)
 
 ### 8.5 Combined IPD Package PDF
 
-Four forms concatenated — each starting on a fresh page:
+Four forms concatenated — each starting on a fresh page. CSS named `@page` rules allow portrait and landscape sections to coexist in one Puppeteer render.
 
 1. Progress Report (portrait) — includes Advice box
 2. Nursing Notes (portrait)
-3. Nursing Chart (landscape)
-4. Drug Order Sheet (landscape; 2 pages if > 15 days)
+3. Nursing Chart (**portrait**)
+4. Drug Order Sheet (**portrait**; up to 3 pages for days 1–21)
+
+- Document title: `"IPD Report — <Patient Full Name>"`
 
 > There is no standalone Advice PDF. Advice data is embedded in the Progress Report PDF only (§8.1).
 
@@ -918,7 +937,7 @@ export interface PatientAdvice {
 | `POST /api/ipd/nursing-chart` | All clinical fields empty | 400 (vitalSign refine) |
 | `GET /api/ipd/progress-report?patientId=X` | Authenticated | Only entries for patient X |
 | `PUT /api/ipd/drug-orders/[id]` | Update day3 times | 200; `day3` column updated |
-| `GET /api/patients/[id]/ipd-pdf?form=drug-orders` | Authenticated | Binary PDF, landscape |
+| `GET /api/patients/[id]/ipd-pdf?form=drug-orders` | Authenticated | Binary PDF, portrait; blank date headers |
 | `GET /api/patients/[id]/ipd-pdf?form=progress-report` | Patient has advice entries | PDF contains Advice box |
 | `GET /api/patients/[id]/ipd-pdf?form=progress-report` | No advice entries | PDF rendered without Advice box |
 | `GET /api/patients/[id]/ipd-pdf` | Combined | Binary PDF, **4 sections** |
@@ -940,8 +959,12 @@ export interface PatientAdvice {
 | PDF — Progress Report | Download | Diagnosis block, clinical table, Advice box present |
 | PDF — no advice | Download Progress Report with no advice | Advice box absent |
 | PDF — Nursing Notes | Download | UHID top-right; no Bed No; two separate columns |
-| PDF — Drug Orders | Download | Landscape; day grid correct; PTO page 2 if > 15 days |
-| Combined PDF | Download | **4 sections** in correct order |
+| PDF — Drug Orders | Download | Portrait; horizontal patient strip below header; blank "Date:" column headers; 7 columns per page; PTO page 2 if days 8–14 data exists |
+| PDF — Drug Orders drug allergy blank | Download with no drug allergy entered | Drug Allergy cell is blank (not "NKDA") |
+| PDF — Nursing Chart | Download | Portrait A4; vitals table correct |
+| Investigation multi-select | In Advice form, select "Blood Test" category, then select CBC + LFT + KFT | All three appear as badge pills in Investigation field; saved as "CBC, LFT, KFT" in sheet |
+| Advice error shown | Submit Advice form without filling required field | Inline red error banner visible inside form |
+| Combined PDF | Download | **4 sections** in correct order; all pages portrait |
 | Delete as STAFF | STAFF tries DELETE on any entry | 403 Forbidden |
 | Delete as ADMIN | ADMIN deletes Progress Report entry | Removed from table and sheet |
 | Advice status | Change Pending → Done | Sheet updated; UI reflects change |
@@ -1039,6 +1062,19 @@ scripts/create-sheets.ts    ← +7 new tab creation
 | Concurrency | Last-write-wins; UI refreshes after save; no warning in v1 |
 | Denormalisation in DrugOrders | `drugAllergy`, `ward`, `bedNo` intentionally copied per row for self-contained PDF rendering |
 | Audit trail (v1) | `staffName` per row + `createdAt`/`updatedAt`; no separate audit log table |
+| Nursing Chart orientation | Portrait A4 (matches physical form) |
+| Drug Order Sheet orientation | Portrait A4 (matches physical form) |
+| Drug Order date column headers | Blank `"Date:"` only — staff writes actual dates on printed paper; no pre-computed dates in PDF |
+| Drug Order columns per page | 7 date columns per page on portrait A4; up to 3 pages (days 1–7, 8–14, 15–21) |
+| Drug Order columns removed | `#` (row number) and `Start Date` removed — not present on physical form |
+| Drug Allergy default | **No default** — field is blank if not entered; "NKDA" is never auto-filled |
+| Multi-select investigations | Advice form allows multiple investigation names per entry; stored as comma-separated string in `investigationName` |
+| Advice status control | Native HTML `<select>` (not Radix UI Select) to avoid lazy-mount rendering issues |
+| Advice form error display | Inline red banner inside form + `toast.error()` for API validation errors |
+| PDF document title | Each PDF has a `<title>` tag: `"Progress Report — <name>"`, `"Nursing Notes — <name>"`, `"Nursing Chart — <name>"`, `"Order Sheet — <name>"`, `"IPD Report — <name>"` (combined) |
+| Marathi font rendering | Noto Sans Devanagari TTF embedded as base64 `@font-face` data URI in PDF CSS — ensures correct rendering in headless Chrome without network font loading |
+| PDF logo | ZH logo loaded from `public/images/zh-logo.svg` as inline base64 SVG data URI at render time |
+| PDF render wait | `waitForRender()` waits for all `<img>` elements and `document.fonts.ready` before generating PDF, preventing blank logos |
 
 ---
 
@@ -1063,3 +1099,49 @@ scripts/create-sheets.ts    ← +7 new tab creation
 - **Testing §13.2 combined PDF expectation fixed:** "all 5 sections" → "4 sections"; `?form=advice` test added (expects 400).
 - **Bug fix §12:** Entry #6 aligned with Phase 1: **7** new sheet tabs (2 master + 5 IPD clinical), distinct from **4** PDF export templates.
 - **v2.2.1:** §1 out-of-scope wording fixed (day-column cap vs multi-row continuation); §12 #6 explicitly lists 7 tabs; §4.8 states `treatingDoctor` already exists on `Patients`.
+
+---
+
+## 17. Post-Implementation Changelog (v2.3.0)
+
+Changes applied after the baseline spec was used for development. All sections updated above.
+
+### 17.1 PDF Layout Changes
+
+| Area | Spec (v2.2) | Implemented (v2.3) |
+|------|-------------|---------------------|
+| Nursing Chart orientation | Landscape | **Portrait** |
+| Drug Order Sheet orientation | Landscape | **Portrait** |
+| Drug Order patient strip | Vertical left sidebar | **Horizontal row below header** |
+| Drug Order columns | `#` · Name · Freq · Route · Start · 1…15 (numbered days + date sub-row) | Name · Freq. · Route · `Date:` (×7 blank) |
+| Drug Order pages | Page 1: days 1–15; PTO page 2: days 16–36 | Page 1: days 1–7; PTO page 2: days 8–14; PTO page 3: days 15–21 |
+| Drug Order date headers | Computed calendar dates (e.g. 31/3, 1/4) | **Blank** — staff writes dates on printed paper |
+| Drug Allergy default | "NKDA" when not entered | **Blank** when not entered |
+| Combined PDF Drug Order | Landscape | **Portrait** |
+
+### 17.2 Advice Form Changes
+
+| Area | Spec (v2.2) | Implemented (v2.3) |
+|------|-------------|---------------------|
+| Investigation field | Single select | **Multi-select** — multiple tests per entry; stored comma-separated |
+| Status field control | Radix UI `Select` (react-hook-form managed) | **Native `<select>`** — eliminates lazy-mount rendering blank |
+| Error display | Toast only | **Inline red banner** inside form + toast |
+
+### 17.3 PDF Technical Infrastructure
+
+| Feature | Description |
+|---------|-------------|
+| Document `<title>` | Each PDF HTML template now has a `<title>` tag (e.g. `"Order Sheet — Ketan Prafulal Mulay"`), fixing "about:blank" shown in PDF viewers |
+| Marathi font | Noto Sans Devanagari TTF (`public/fonts/NotoSansDevanagari-Regular.ttf`) embedded as base64 `@font-face` data URI in all PDF CSS — no Google Fonts network request in headless Chrome |
+| Hospital logo | Replaced broken base64 PNG with dynamic inline SVG loaded from `public/images/zh-logo.svg` at render time |
+| Render wait | `waitForRender()` function resolves after all `<img>` elements load and `document.fonts.ready` fires, plus 200ms buffer, before calling `page.pdf()` |
+| Browser singleton | `lib/browser.ts` conditionally applies Linux-specific Chrome flags only on Linux; skips `@sparticuz/chromium` in development |
+| Puppeteer timeout | Increased from 30s to 60s |
+
+### 17.4 Other Runtime Fixes
+
+| Fix | Description |
+|-----|-------------|
+| Grammarly extension React error | Added `data-gramm="false" data-gramm_editor="false"` to all `<textarea>` elements to prevent Grammarly's React root injection |
+| Client state `Array.entries` collision | Client-side data assignment now checks `Array.isArray(data)` before accessing `.entries` / `.vitals` etc. properties, preventing native iterator method from being assigned to state |
+| Advice `investigationName` column | The `PatientAdvice.investigationName` field stores a comma-separated list of test names (e.g. `"CBC, LFT, KFT"`) to support multi-select. The column definition in §4.7 reflects this. |

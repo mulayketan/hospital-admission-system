@@ -27,7 +27,7 @@ export const NursingChartView = ({ patient, language }: NursingChartViewProps) =
       const res = await fetch(`/api/ipd/nursing-chart?patientId=${patient.id}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setVitals(data.vitals ?? data ?? [])
+      setVitals(Array.isArray(data) ? data : [])
     } catch {
       toast.error('Error loading vital signs')
     } finally {

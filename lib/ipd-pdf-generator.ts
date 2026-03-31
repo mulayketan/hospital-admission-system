@@ -1,4 +1,7 @@
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { getBrowser } from './browser'
+import { WARD_DISPLAY_NAMES } from './ipd-types'
 
 // ---------------------------------------------------------------------------
 // TypeScript interfaces (§10 of spec)
@@ -147,13 +150,34 @@ const stackTimes = (val: string): string =>
 const fullName = (p: IPDPatient): string =>
   [p.firstName, p.middleName, p.surname].filter(Boolean).join(' ')
 
+/** Resolve a ward code to its display label. */
+const wardLabel = (code: string): string => WARD_DISPLAY_NAMES[code] ?? code
+
 // ---------------------------------------------------------------------------
 // Shared CSS constants
 // ---------------------------------------------------------------------------
 
-const FONT_IMPORT = `
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&display=swap');
-`
+// Embed local Noto Sans Devanagari font so Puppeteer never needs a network
+// request for Devanagari rendering (Google Fonts can't load in headless env).
+const loadDevanariFontSrc = (): string => {
+  try {
+    const buf = readFileSync(join(process.cwd(), 'public', 'fonts', 'NotoSansDevanagari-Regular.ttf'))
+    return `data:font/truetype;base64,${buf.toString('base64')}`
+  } catch {
+    return ''
+  }
+}
+const DEVANAGARI_FONT_SRC = loadDevanariFontSrc()
+
+const FONT_IMPORT = DEVANAGARI_FONT_SRC
+  ? `@font-face {
+      font-family: 'Noto Sans Devanagari';
+      src: url('${DEVANAGARI_FONT_SRC}') format('truetype');
+      font-weight: 400 700;
+      font-style: normal;
+    }
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap');`
+  : `@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&display=swap');`
 
 const BASE_CSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -205,71 +229,27 @@ const BASE_CSS = `
 `
 
 // ---------------------------------------------------------------------------
-// ZH Logo (same base64 PNG as pdf-generator-final.ts)
+// ZH Logo — read actual SVG from the public folder at runtime (server-side)
 // ---------------------------------------------------------------------------
-const ZH_LOGO_SRC =
-  'data:image/png;base64,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' +
-  'ODcryAAAAAElFTkSuQmCC'
+const loadLogoSrc = (): string => {
+  try {
+    const svgContent = readFileSync(join(process.cwd(), 'public', 'images', 'zh-logo.svg'))
+    return `data:image/svg+xml;base64,${svgContent.toString('base64')}`
+  } catch {
+    return ''
+  }
+}
+const ZH_LOGO_SRC = loadLogoSrc()
 
 // ---------------------------------------------------------------------------
 // Shared HTML wrapper (adds fonts + base styles for portrait or landscape)
 // ---------------------------------------------------------------------------
 
-const htmlDoc = (orientation: 'portrait' | 'landscape', body: string): string => `<!DOCTYPE html>
+const htmlDoc = (orientation: 'portrait' | 'landscape', body: string, title = 'IPD Report'): string => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <title>${title}</title>
   <style>
     ${FONT_IMPORT}
     @page { size: A4 ${orientation}; margin: 8mm 8mm; }
@@ -285,6 +265,28 @@ ${body}
 // Render a Puppeteer page and return a PDF Buffer
 // ---------------------------------------------------------------------------
 
+const waitForRender = async (page: import('puppeteer-core').Page): Promise<void> => {
+  await page.evaluate(() =>
+    new Promise<void>(resolve => {
+      // Wait for all images (including base64) to decode
+      const imgs = Array.from(document.querySelectorAll('img'))
+      const imgPromises = imgs.map(img =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise<void>(r => {
+              img.addEventListener('load', () => r())
+              img.addEventListener('error', () => r())
+            })
+      )
+      Promise.all(imgPromises)
+        .then(() => document.fonts.ready)
+        .then(() => setTimeout(resolve, 200))
+        .catch(() => setTimeout(resolve, 500))
+      setTimeout(resolve, 3000)
+    })
+  )
+}
+
 const renderPDF = async (
   html: string,
   orientation: 'portrait' | 'landscape'
@@ -294,6 +296,7 @@ const renderPDF = async (
   try {
     await page.setViewport({ width: orientation === 'landscape' ? 1600 : 1200, height: 1100 })
     await page.setContent(html, { waitUntil: 'domcontentloaded' })
+    await waitForRender(page)
     const pdfBuffer = await page.pdf({
       format: 'A4',
       landscape: orientation === 'landscape',
@@ -359,7 +362,7 @@ export const generateProgressReportPDF = async ({
                 <td style="text-align:center">${formatIPDDate(a.dateTime)}</td>
                 <td>${esc(a.category)}</td>
                 <td>${esc(a.investigationName)}</td>
-                <td class="cell-wrap">${esc(a.notes || '—')}</td>
+                <td class="cell-wrap">${a.reportNotes ? `<strong>${esc(a.reportNotes)}</strong>` + (a.notes ? `<br><span style="color:#555;font-size:9.5px;">${esc(a.notes)}</span>` : '') : esc(a.notes || '—')}</td>
                 <td style="text-align:center">${esc(a.status)}</td>
               </tr>`
               )
@@ -431,7 +434,7 @@ export const generateProgressReportPDF = async ({
     </div>
   </div>`
 
-  return renderPDF(htmlDoc('portrait', body), 'portrait')
+  return renderPDF(htmlDoc('portrait', body, `Progress Report — ${fullName(patient)}`), 'portrait')
 }
 
 // ---------------------------------------------------------------------------
@@ -510,11 +513,11 @@ export const generateNursingNotesPDF = async ({
     </div>
   </div>`
 
-  return renderPDF(htmlDoc('portrait', body), 'portrait')
+  return renderPDF(htmlDoc('portrait', body, `Nursing Notes — ${fullName(patient)}`), 'portrait')
 }
 
 // ---------------------------------------------------------------------------
-// 3. Nursing Chart PDF (Landscape A4)  §8.3
+// 3. Nursing Chart PDF (Portrait A4)  §8.3
 // ---------------------------------------------------------------------------
 
 export const generateNursingChartPDF = async ({
@@ -601,11 +604,13 @@ export const generateNursingChartPDF = async ({
     </div>
   </div>`
 
-  return renderPDF(htmlDoc('landscape', body), 'landscape')
+  return renderPDF(htmlDoc('portrait', body, `Nursing Chart — ${fullName(patient)}`), 'portrait')
 }
 
 // ---------------------------------------------------------------------------
-// 4. Drug Order Sheet PDF (Landscape A4)  §8.4
+// 4. Drug Order Sheet PDF (Portrait A4)  §8.4
+//    Columns match physical template: Name of Drug | Freq. | Route | Date: D/M | …
+//    7 date columns per page; PTO pages for additional days.
 // ---------------------------------------------------------------------------
 
 export const generateDrugOrderPDF = async ({
@@ -617,159 +622,166 @@ export const generateDrugOrderPDF = async ({
 }): Promise<Buffer> => {
   if (drugOrders.length === 0) {
     return renderPDF(
-      htmlDoc(
-        'landscape',
-        '<div class="container" style="padding:20px;text-align:center;color:#888;">No drug orders found.</div>'
-      ),
-      'landscape'
+      htmlDoc('portrait', '<div class="container" style="padding:20px;text-align:center;color:#888;">No drug orders found.</div>'),
+      'portrait'
     )
   }
 
-  // Compute global start date (earliest across all drug rows)
   const globalStart = drugOrders.reduce<Date>((earliest, d) => {
-    const candidate = parseDateStr(d.startDate)
-    return candidate < earliest ? candidate : earliest
+    const c = parseDateStr(d.startDate)
+    return c < earliest ? c : earliest
   }, parseDateStr(drugOrders[0].startDate))
 
-  const drugStart = (drug: DrugOrder): Date => parseDateStr(drug.startDate)
-
-  /** Column N (1-indexed) → calendar date. */
   const colDate = (n: number): Date => {
     const d = new Date(globalStart)
     d.setDate(d.getDate() + n - 1)
     return d
   }
 
-  /** Drug × column → administration times (stacked). */
   const cellValue = (drug: DrugOrder, colN: number): string => {
-    const ds = drugStart(drug)
-    const msPerDay = 86_400_000
-    const dayOffset = Math.round((colDate(colN).getTime() - ds.getTime()) / msPerDay)
+    const ds = parseDateStr(drug.startDate)
+    const dayOffset = Math.round((colDate(colN).getTime() - ds.getTime()) / 86_400_000)
     if (dayOffset < 0 || dayOffset > 35) return ''
     const val = drug.days[`day${dayOffset + 1}`] || ''
     return val ? stackTimes(val) : ''
   }
 
-  // Check if page 2 is needed
-  const needsPage2 = drugOrders.some(drug =>
-    Array.from({ length: 21 }, (_, i) => `day${i + 16}`).some(
-      key => (drug.days[key] || '').trim() !== ''
+  const hasDaysData = (from: number, to: number): boolean =>
+    drugOrders.some(drug =>
+      Array.from({ length: to - from + 1 }, (_, i) => `day${from + i}`).some(
+        key => (drug.days[key] || '').trim() !== ''
+      )
     )
-  )
 
-  // Use the first drug row for denormalized patient info
   const firstDrug = drugOrders[0]
-  const drugAllergy = firstDrug.drugAllergy || 'NKDA'
+  const drugAllergy = firstDrug.drugAllergy || ''
   const ward = firstDrug.ward || patient.ward || '—'
   const bedNo = firstDrug.bedNo || patient.bedNo || '—'
   const medOfficer = firstDrug.medOfficerSignature || ''
 
-  const patientInfoCol = `
-    <div style="width:120px;min-width:120px;border-right:2px solid #000;padding:4px 6px;font-size:10px;line-height:1.6;">
-      <div><strong>Patient Name:</strong></div>
-      <div style="border-bottom:1px solid #aaa;margin-bottom:4px;">${esc(fullName(patient))}</div>
-      <div><strong>Drug Allergy:</strong></div>
-      <div style="border-bottom:1px solid #aaa;margin-bottom:4px;">${esc(drugAllergy)}</div>
-      <div><strong>Age:</strong></div>
-      <div style="border-bottom:1px solid #aaa;margin-bottom:4px;">${patient.age}</div>
-      <div><strong>Sex M/F:</strong></div>
-      <div style="border-bottom:1px solid #aaa;margin-bottom:4px;">${patient.sex}</div>
-      <div><strong>Ward:</strong></div>
-      <div style="border-bottom:1px solid #aaa;margin-bottom:4px;">${esc(ward)}</div>
-      <div><strong>Room/Bed No.:</strong></div>
-      <div style="border-bottom:1px solid #aaa;margin-bottom:4px;">${esc(bedNo)}</div>
-      <div><strong>IPD No.:</strong></div>
-      <div>${esc(patient.ipdNo || '—')}</div>
+  // Horizontal patient info bar — sits below the header, above the drug table
+  const patientInfoRow = `
+    <div style="display:flex;border:1px solid #000;border-bottom:none;font-size:9px;line-height:1.4;margin-bottom:0;">
+      <div style="flex:2;border-right:1px solid #000;padding:3px 5px;">
+        <div style="font-weight:bold;font-size:8px;color:#555;">Patient Name</div>
+        <div>${esc(fullName(patient))}</div>
+      </div>
+      <div style="flex:1.5;border-right:1px solid #000;padding:3px 5px;">
+        <div style="font-weight:bold;font-size:8px;color:#555;">Drug Allergy</div>
+        <div>${esc(drugAllergy)}</div>
+      </div>
+      <div style="flex:0.5;border-right:1px solid #000;padding:3px 5px;">
+        <div style="font-weight:bold;font-size:8px;color:#555;">Age</div>
+        <div>${patient.age}</div>
+      </div>
+      <div style="flex:0.5;border-right:1px solid #000;padding:3px 5px;">
+        <div style="font-weight:bold;font-size:8px;color:#555;">Sex M/F</div>
+        <div>${patient.sex}</div>
+      </div>
+      <div style="flex:1;border-right:1px solid #000;padding:3px 5px;">
+        <div style="font-weight:bold;font-size:8px;color:#555;">Ward</div>
+        <div>${esc(wardLabel(ward))}</div>
+      </div>
+      <div style="flex:1;border-right:1px solid #000;padding:3px 5px;">
+        <div style="font-weight:bold;font-size:8px;color:#555;">Room/Bed No.</div>
+        <div>${esc(bedNo)}</div>
+      </div>
+      <div style="flex:1;padding:3px 5px;">
+        <div style="font-weight:bold;font-size:8px;color:#555;">IPD No.</div>
+        <div>${esc(patient.ipdNo || '—')}</div>
+      </div>
     </div>`
+
+  // 7 date columns per page matches physical template proportions on portrait A4
+  const COLS_PER_PAGE = 7
 
   const buildPage = (daysFrom: number, daysTo: number, isPto: boolean): string => {
     const numCols = daysTo - daysFrom + 1
-    const drugCols = ['#', 'Name of Drug', 'Freq', 'Route', 'Start']
-    const dayColWidth = Math.floor(62 / numCols)
+    const namePct = 38
+    const freqPct = 10
+    const routePct = 9
+    const datePct = Math.floor((100 - namePct - freqPct - routePct) / numCols)
 
+    // Date column headers are blank — staff fills dates on the printed form
     const headerRow = [
-      ...drugCols.map(
-        (h, i) =>
-          `<th style="width:${[3, 24, 7, 8, 7][i]}%;">${h}</th>`
+      `<th style="width:${namePct}%;">Name of Drug</th>`,
+      `<th style="width:${freqPct}%;">Freq.</th>`,
+      `<th style="width:${routePct}%;">Route</th>`,
+      ...Array.from({ length: numCols }, () =>
+        `<th style="width:${datePct}%;text-align:center;font-weight:bold;">Date:<br/><span style="font-weight:normal;font-size:8px;">&nbsp;</span></th>`
       ),
-      ...Array.from({ length: numCols }, (_, i) => {
-        const d = colDate(daysFrom + i)
-        return `<th style="width:${dayColWidth}%;text-align:center;">${fmtDayHeader(d)}</th>`
-      }),
     ].join('')
 
     const bodyRows = drugOrders
-      .map(
-        (drug, idx) => `
+      .map(drug => `
         <tr>
-          <td style="text-align:center">${idx + 1}</td>
           <td class="cell-wrap">${esc(drug.drugName)}</td>
           <td style="text-align:center">${esc(drug.frequency)}</td>
           <td style="text-align:center">${esc(drug.route)}</td>
-          <td style="text-align:center">${fmtDayHeader(parseDateStr(drug.startDate))}</td>
           ${Array.from({ length: numCols }, (_, i) => {
             const val = cellValue(drug, daysFrom + i)
             return `<td style="text-align:center;vertical-align:top;font-size:9px;">${val}</td>`
           }).join('')}
-        </tr>`
-      )
+        </tr>`)
       .join('')
 
     return `
-      <div style="display:flex;">
-        ${patientInfoCol}
-        <div style="flex:1;overflow:hidden;">
-          ${isPto ? '<div style="font-weight:bold;font-size:11px;margin-bottom:4px;">PTO — Days 16–36</div>' : ''}
-          <table style="table-layout:fixed;width:100%;font-size:9.5px;">
-            <thead><tr>${headerRow}</tr></thead>
-            <tbody>${bodyRows}</tbody>
-          </table>
-        </div>
-      </div>`
+      ${isPto ? '<div style="font-weight:bold;font-size:10px;margin:4px 0;">PTO</div>' : ''}
+      ${patientInfoRow}
+      <table style="table-layout:fixed;width:100%;font-size:9.5px;">
+        <thead><tr>${headerRow}</tr></thead>
+        <tbody>${bodyRows}</tbody>
+      </table>`
   }
 
-  const page1 = buildPage(1, 15, false)
-  const page2 = needsPage2 ? buildPage(16, 36, true) : ''
-
-  const header = `
+  const orderHeader = `
     <div class="header" style="margin-bottom:6px;">
       <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:center;">
         <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
         <div>
-          <div style="font-weight:bold;font-size:14px;" class="marathi">झावर हॉस्पिटल</div>
+          <div style="font-weight:bold;font-size:14px;" class="marathi">झंवर हॉस्पिटल</div>
           <div style="font-size:12px;font-weight:bold;">Zawar Hospital</div>
         </div>
       </div>
       <div><span class="badge" style="font-size:14px;">ORDER SHEET</span></div>
     </div>`
 
-  const footer = `
+  const orderFooter = `
     <div class="footer" style="margin-top:12px;">
       <div class="footer-sigs">
-        <div></div>
         <div class="sig-block">
           <div class="sig-line"></div>
           <div style="font-weight:bold;">${esc(medOfficer || patient.treatingDoctor || '')}</div>
-          <div>Medical Officer</div>
+          <div>Medical Officer Signature</div>
         </div>
+        <div></div>
       </div>
     </div>`
 
+  // Build pages: 7 date columns each
+  const pages: string[] = []
+  for (let start = 1; start <= 21; start += COLS_PER_PAGE) {
+    const end = start + COLS_PER_PAGE - 1
+    if (start === 1 || hasDaysData(start, end)) {
+      pages.push(buildPage(start, end, start > 1))
+    }
+  }
+
   const body = `
   <div class="container">
-    ${header}
-    ${page1}
-    ${needsPage2
-      ? `<div style="page-break-before:always;margin-top:8px;">${header}${page2}${footer}</div>`
-      : footer}
+    ${orderHeader}
+    ${pages.map((p, i) =>
+      i === 0 ? p : `<div style="page-break-before:always;">${orderHeader}${p}</div>`
+    ).join('')}
+    ${orderFooter}
   </div>`
 
-  return renderPDF(htmlDoc('landscape', body), 'landscape')
+  return renderPDF(htmlDoc('portrait', body, `Order Sheet — ${fullName(patient)}`), 'portrait')
 }
 
 // ---------------------------------------------------------------------------
 // 5. Combined IPD PDF — 4 forms concatenated (§8.5)
-//    Uses CSS named pages so portrait and landscape sections coexist.
+//    All sections are portrait. CSS named pages kept for extensibility.
 // ---------------------------------------------------------------------------
 
 export const generateCombinedIPDPDF = async ({
@@ -831,7 +843,7 @@ export const generateCombinedIPDPDF = async ({
                 <td style="text-align:center">${formatIPDDate(a.dateTime)}</td>
                 <td>${esc(a.category)}</td>
                 <td>${esc(a.investigationName)}</td>
-                <td class="cell-wrap">${esc(a.notes || '—')}</td>
+                <td class="cell-wrap">${a.reportNotes ? `<strong>${esc(a.reportNotes)}</strong>` + (a.notes ? `<br><span style="color:#555;font-size:9.5px;">${esc(a.notes)}</span>` : '') : esc(a.notes || '—')}</td>
                 <td style="text-align:center">${esc(a.status)}</td>
               </tr>`
               )
@@ -895,7 +907,6 @@ export const generateCombinedIPDPDF = async ({
     .join('')
 
   const nnSection = `
-    <div style="text-align:right;margin-bottom:4px;font-size:11px;"><strong>UHID:</strong> ${esc(patient.uhidNo || '—')}</div>
     <div class="container" style="page:portrait-page;">
       <div class="header">
         <span class="badge">NURSING NOTES</span>
@@ -914,7 +925,7 @@ export const generateCombinedIPDPDF = async ({
           <div><span class="ps-label">Sex M/F:</span>&nbsp;${patient.sex}</div>
         </div>
       </div>
-      <table><thead><tr><th style="width:15%">Date &amp; Time</th><th style="width:45%">Doctor's Notes</th><th style="width:40%">Treatment</th></tr></thead>
+      <table><thead><tr><th style="width:15%">Date &amp; Time</th><th style="width:45%">Notes</th><th style="width:40%">Treatment Given</th></tr></thead>
       <tbody>${nnRows || '<tr><td colspan="3" style="text-align:center;color:#888">No entries</td></tr>'}</tbody></table>
       <div class="footer">
         <div class="footer-note">Every Entry to be Named, Signed, Dated &amp; Timed</div>
@@ -941,7 +952,7 @@ export const generateCombinedIPDPDF = async ({
     .join('')
 
   const ncSection = `
-    <div class="container" style="page:landscape-page;">
+    <div class="container" style="page:portrait-page;">
       <div class="header">
         <span class="badge">NURSING CHART</span>
         <div style="display:flex;align-items:center;gap:6px;">
@@ -973,6 +984,7 @@ export const generateCombinedIPDPDF = async ({
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <title>IPD Report — ${esc(fullName(patient))}</title>
   <style>
     ${FONT_IMPORT}
     @page portrait-page  { size: A4 portrait;  margin: 8mm; }
@@ -994,11 +1006,10 @@ export const generateCombinedIPDPDF = async ({
   try {
     await page.setViewport({ width: 1600, height: 1100 })
     await page.setContent(combinedHtml, { waitUntil: 'domcontentloaded' })
+    await waitForRender(page)
     // Do NOT pass `format` or `landscape` here — the combined PDF uses CSS
-    // @page named-pages to control per-section orientation (portrait for
-    // Progress Report / Nursing Notes; landscape for Nursing Chart / Drug Orders).
-    // Passing format:'A4' would override the CSS @page size directives and render
-    // all sections as portrait, breaking the landscape sections (§8.3, §8.4).
+    // @page named-pages (portrait-page) for all sections. Passing format:'A4'
+    // would override the CSS @page size directives.
     const pdfBuffer = await page.pdf({
       printBackground: true,
       margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
@@ -1019,7 +1030,7 @@ async function buildDrugOrderSection(
   drugOrders: DrugOrder[]
 ): Promise<string> {
   if (drugOrders.length === 0) {
-    return `<div class="container" style="page:landscape-page;padding:20px;text-align:center;color:#888;">No drug orders.</div>`
+    return `<div class="container" style="page:portrait-page;padding:20px;text-align:center;color:#888;">No drug orders.</div>`
   }
 
   const globalStart = drugOrders.reduce<Date>((earliest, d) => {
@@ -1035,68 +1046,92 @@ async function buildDrugOrderSection(
 
   const cellValue = (drug: DrugOrder, colN: number): string => {
     const ds = parseDateStr(drug.startDate)
-    const msPerDay = 86_400_000
-    const dayOffset = Math.round((colDate(colN).getTime() - ds.getTime()) / msPerDay)
+    const dayOffset = Math.round((colDate(colN).getTime() - ds.getTime()) / 86_400_000)
     if (dayOffset < 0 || dayOffset > 35) return ''
     const val = drug.days[`day${dayOffset + 1}`] || ''
     return val ? stackTimes(val) : ''
   }
 
-  const needsPage2 = drugOrders.some(drug =>
-    Array.from({ length: 21 }, (_, i) => `day${i + 16}`).some(
-      key => (drug.days[key] || '').trim() !== ''
+  const hasDaysData = (from: number, to: number): boolean =>
+    drugOrders.some(drug =>
+      Array.from({ length: to - from + 1 }, (_, i) => `day${from + i}`).some(
+        key => (drug.days[key] || '').trim() !== ''
+      )
     )
-  )
 
   const firstDrug = drugOrders[0]
-  const drugAllergy = firstDrug.drugAllergy || 'NKDA'
+  const drugAllergy = firstDrug.drugAllergy || ''
   const ward = firstDrug.ward || patient.ward || '—'
   const bedNo = firstDrug.bedNo || patient.bedNo || '—'
   const medOfficer = firstDrug.medOfficerSignature || patient.treatingDoctor || ''
 
-  const patientCol = `
-    <div style="width:110px;min-width:110px;border-right:2px solid #000;padding:4px;font-size:9px;line-height:1.7;">
-      <div><strong>Patient Name:</strong></div>
-      <div style="border-bottom:1px solid #aaa;margin-bottom:3px;">${esc(fullName(patient))}</div>
-      <div><strong>Drug Allergy:</strong></div>
-      <div style="border-bottom:1px solid #aaa;margin-bottom:3px;">${esc(drugAllergy)}</div>
-      <div><strong>Age:</strong>&nbsp;${patient.age}</div>
-      <div><strong>Sex M/F:</strong>&nbsp;${patient.sex}</div>
-      <div><strong>Ward:</strong>&nbsp;${esc(ward)}</div>
-      <div><strong>Room/Bed:</strong>&nbsp;${esc(bedNo)}</div>
-      <div><strong>IPD No.:</strong>&nbsp;${esc(patient.ipdNo || '—')}</div>
+  const patientInfoRow = `
+    <div style="display:flex;border:1px solid #000;border-bottom:none;font-size:8.5px;line-height:1.4;">
+      <div style="flex:2;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:7.5px;color:#555;">Patient Name</div>
+        <div>${esc(fullName(patient))}</div>
+      </div>
+      <div style="flex:1.5;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:7.5px;color:#555;">Drug Allergy</div>
+        <div>${esc(drugAllergy)}</div>
+      </div>
+      <div style="flex:0.5;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:7.5px;color:#555;">Age</div>
+        <div>${patient.age}</div>
+      </div>
+      <div style="flex:0.5;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:7.5px;color:#555;">Sex M/F</div>
+        <div>${patient.sex}</div>
+      </div>
+      <div style="flex:1;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:7.5px;color:#555;">Ward</div>
+        <div>${esc(wardLabel(ward))}</div>
+      </div>
+      <div style="flex:1;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:7.5px;color:#555;">Room/Bed No.</div>
+        <div>${esc(bedNo)}</div>
+      </div>
+      <div style="flex:1;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:7.5px;color:#555;">IPD No.</div>
+        <div>${esc(patient.ipdNo || '—')}</div>
+      </div>
     </div>`
 
-  const buildGrid = (from: number, to: number): string => {
+  const COLS_PER_PAGE = 7
+
+  const buildGrid = (from: number, to: number, isPto: boolean): string => {
     const numCols = to - from + 1
-    const dayColW = Math.floor(58 / numCols)
-    const header = [
-      `<th style="width:3%">#</th>`,
-      `<th style="width:22%">Name of Drug</th>`,
-      `<th style="width:6%">Freq</th>`,
-      `<th style="width:7%">Route</th>`,
-      `<th style="width:6%">Start</th>`,
-      ...Array.from({ length: numCols }, (_, i) =>
-        `<th style="width:${dayColW}%;text-align:center;">${fmtDayHeader(colDate(from + i))}</th>`
+    const namePct = 38
+    const freqPct = 10
+    const routePct = 9
+    const datePct = Math.floor((100 - namePct - freqPct - routePct) / numCols)
+    const headerRow = [
+      `<th style="width:${namePct}%">Name of Drug</th>`,
+      `<th style="width:${freqPct}%">Freq.</th>`,
+      `<th style="width:${routePct}%">Route</th>`,
+      ...Array.from({ length: numCols }, () =>
+        `<th style="width:${datePct}%;text-align:center;font-weight:bold;">Date:<br/><span style="font-weight:normal;font-size:7.5px;">&nbsp;</span></th>`
       ),
     ].join('')
     const rows = drugOrders
-      .map(
-        (drug, idx) => `
+      .map(drug => `
         <tr>
-          <td style="text-align:center">${idx + 1}</td>
           <td class="cell-wrap">${esc(drug.drugName)}</td>
           <td style="text-align:center">${esc(drug.frequency)}</td>
           <td style="text-align:center;font-size:8.5px;">${esc(drug.route)}</td>
-          <td style="text-align:center">${fmtDayHeader(parseDateStr(drug.startDate))}</td>
           ${Array.from({ length: numCols }, (_, i) => {
             const v = cellValue(drug, from + i)
             return `<td style="text-align:center;vertical-align:top;font-size:8px;">${v}</td>`
           }).join('')}
-        </tr>`
-      )
+        </tr>`)
       .join('')
-    return `<table style="table-layout:fixed;width:100%;font-size:9px;"><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table>`
+    return `
+      ${isPto ? '<div style="font-weight:bold;font-size:9.5px;margin-bottom:3px;">PTO</div>' : ''}
+      ${patientInfoRow}
+      <table style="table-layout:fixed;width:100%;font-size:9px;">
+        <thead><tr>${headerRow}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
   }
 
   const orderHeader = `
@@ -1104,7 +1139,7 @@ async function buildDrugOrderSection(
       <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:center;">
         <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
         <div>
-          <div class="marathi" style="font-weight:bold;font-size:13px;">झावर हॉस्पिटल</div>
+          <div class="marathi" style="font-weight:bold;font-size:13px;">झंवर हॉस्पिटल</div>
           <div style="font-size:11px;font-weight:bold;">Zawar Hospital</div>
         </div>
       </div>
@@ -1112,29 +1147,29 @@ async function buildDrugOrderSection(
     </div>`
 
   const sig = `
-    <div class="footer"><div class="footer-sigs" style="margin-top:10px;"><div></div>
+    <div class="footer"><div class="footer-sigs" style="margin-top:10px;">
       <div class="sig-block"><div class="sig-line"></div>
         <div style="font-weight:bold;">${esc(medOfficer)}</div>
-        <div>Medical Officer</div>
+        <div>Medical Officer Signature</div>
       </div>
+      <div></div>
     </div></div>`
 
-  const page1 = `
-    <div class="container" style="page:landscape-page;">
-      ${orderHeader}
-      <div style="display:flex;">${patientCol}<div style="flex:1;overflow:hidden;">${buildGrid(1, 15)}</div></div>
-      ${needsPage2 ? '' : sig}
-    </div>`
+  // Build portrait pages, 7 date-columns each
+  const pages: string[] = []
+  for (let start = 1; start <= 21; start += COLS_PER_PAGE) {
+    const end = start + COLS_PER_PAGE - 1
+    if (start === 1 || hasDaysData(start, end)) {
+      pages.push(buildGrid(start, end, start > 1))
+    }
+  }
 
-  const page2 = needsPage2
-    ? `
-    <div class="container" style="page:landscape-page;margin-top:8px;">
-      ${orderHeader}
-      <div style="font-weight:bold;font-size:10px;margin-bottom:4px;">PTO — Days 16–36</div>
-      <div style="display:flex;">${patientCol}<div style="flex:1;overflow:hidden;">${buildGrid(16, 36)}</div></div>
-      ${sig}
-    </div>`
-    : ''
-
-  return page1 + (needsPage2 ? `<div class="new-page">${page2}</div>` : '')
+  return pages
+    .map((grid, i) => `
+      <div class="container" style="page:portrait-page;">
+        ${orderHeader}
+        ${grid}
+        ${i === pages.length - 1 ? sig : ''}
+      </div>`)
+    .join('<div class="new-page"></div>')
 }

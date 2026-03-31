@@ -10,7 +10,7 @@ import { UserModel, PatientModel, WardChargesModel } from '../lib/sheets-models'
 import bcrypt from 'bcryptjs'
 
 // Load environment variables
-dotenv.config()
+dotenv.config({ path: '.env.local' })
 
 async function setupGoogleSheets() {
   console.log('🚀 Setting up Google Sheets structure...')
@@ -35,11 +35,14 @@ async function setupGoogleSheets() {
     await UserModel.initializeSheet()
     
     // Create default admin user
-    const adminExists = await UserModel.findByEmail(process.env.DEFAULT_ADMIN_EMAIL || 'admin@hospital.com')
+    const adminEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@hospital.com'
+    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123'
+    const adminExists = await UserModel.findByEmail(adminEmail)
     if (!adminExists) {
+      const hashedAdminPassword = await bcrypt.hash(adminPassword, 12)
       await UserModel.create({
-        email: process.env.DEFAULT_ADMIN_EMAIL || 'admin@hospital.com',
-        password: process.env.DEFAULT_ADMIN_PASSWORD || 'admin123',
+        email: adminEmail,
+        password: hashedAdminPassword,
         name: 'Administrator',
         role: 'ADMIN'
       })
@@ -49,11 +52,13 @@ async function setupGoogleSheets() {
     }
 
     // Create default staff user
+    const staffPassword = 'staff123'
     const staffExists = await UserModel.findByEmail('staff@hospital.com')
     if (!staffExists) {
+      const hashedStaffPassword = await bcrypt.hash(staffPassword, 12)
       await UserModel.create({
         email: 'staff@hospital.com',
-        password: 'staff123',
+        password: hashedStaffPassword,
         name: 'Staff Member',
         role: 'STAFF'
       })

@@ -55,6 +55,8 @@ export const DiagnosisBlock = ({
       </Label>
       <div className="flex gap-2">
         <textarea
+          data-gramm="false"
+          data-gramm_editor="false"
           value={diagnosis}
           onChange={(e) => setDiagnosis(e.target.value)}
           rows={2}

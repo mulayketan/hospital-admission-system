@@ -30,7 +30,7 @@ export const MedicineSelect = ({
     setLoading(true)
     fetch('/api/medicines')
       .then((r) => r.json())
-      .then((data) => setMedicines(data.medicines ?? data ?? []))
+      .then((data) => setMedicines(Array.isArray(data) ? data : (Array.isArray(data.medicines) ? data.medicines : [])))
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])

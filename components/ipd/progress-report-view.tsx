@@ -30,7 +30,7 @@ export const ProgressReportView = ({ patient, language }: ProgressReportViewProp
       const res = await fetch(`/api/ipd/progress-report?patientId=${patient.id}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setEntries(data.entries ?? data ?? [])
+      setEntries(Array.isArray(data) ? data : [])
     } catch {
       toast.error('Error loading progress report entries')
     } finally {

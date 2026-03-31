@@ -30,7 +30,7 @@ export const DrugOrderView = ({ patient, language }: DrugOrderViewProps) => {
       const res = await fetch(`/api/ipd/drug-orders?patientId=${patient.id}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
-      const list: DrugOrder[] = data.orders ?? data ?? []
+      const list: DrugOrder[] = Array.isArray(data) ? data : []
       setOrders(list)
       // Populate allergy/signature from first row if available
       if (list.length > 0) {

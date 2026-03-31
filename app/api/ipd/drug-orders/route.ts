@@ -52,12 +52,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(order, { status: 201 })
   } catch (error) {
     if (error instanceof ZodError) {
-        return NextResponse.json(zodErrorBody(error), { status: 400 })
-      }
-      if (error instanceof Error) {
-        return NextResponse.json({ error: error.message }, { status: 400 })
-      }
+      return NextResponse.json(zodErrorBody(error), { status: 400 })
+    }
     console.error('Error creating drug order:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to create entry' }, { status: 503 })
   }
 }

@@ -27,7 +27,7 @@ export const AdviceView = ({ patient, language }: AdviceViewProps) => {
       const res = await fetch(`/api/ipd/advice?patientId=${patient.id}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
-      setAdviceList(data.advice ?? data ?? [])
+      setAdviceList(Array.isArray(data) ? data : [])
     } catch {
       toast.error('Error loading advice entries')
     } finally {

@@ -86,10 +86,23 @@ export const AdviceTable = ({
                 {formatISTDateTime(advice.dateTime)}
               </td>
               <td className="px-4 py-3 text-gray-700">{advice.category}</td>
-              <td className="px-4 py-3 text-gray-800 font-medium">
-                {advice.investigationName}
+              <td className="px-4 py-3">
+                <div className="flex flex-wrap gap-1">
+                  {advice.investigationName
+                    .split(',')
+                    .map((n) => n.trim())
+                    .filter(Boolean)
+                    .map((name) => (
+                      <span
+                        key={name}
+                        className="inline-block bg-blue-50 text-blue-800 border border-blue-200 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+                      >
+                        {name}
+                      </span>
+                    ))}
+                </div>
                 {advice.notes && (
-                  <div className="text-xs text-gray-400">{advice.notes}</div>
+                  <div className="text-xs text-gray-400 mt-1">{advice.notes}</div>
                 )}
               </td>
               <td className="px-4 py-3 text-gray-700">{advice.advisedBy}</td>

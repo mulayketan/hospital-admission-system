@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       firstNameMarathi: validatedData.firstNameMarathi,
       middleNameMarathi: validatedData.middleNameMarathi,
       surnameMarathi: validatedData.surnameMarathi,
-      bedNo: (validatedData as any).bedNo ?? null,
+      bedNo: validatedData.bedNo ?? null,
       createdByUserId: session.user.id ?? null,
     })
 

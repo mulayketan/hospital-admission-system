@@ -10,7 +10,7 @@ import { google } from 'googleapis'
 import { JWT } from 'google-auth-library'
 
 // Load environment variables
-dotenv.config()
+dotenv.config({ path: '.env.local' })
 
 const getSpreadsheetId = () => {
   const id = process.env.GOOGLE_SHEETS_ID

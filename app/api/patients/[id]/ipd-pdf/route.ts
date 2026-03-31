@@ -134,7 +134,6 @@ export async function GET(
     })
   } catch (error: unknown) {
     console.error('Error generating IPD PDF:', error)
-    const message = error instanceof Error ? error.message : 'Internal server error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'PDF generation failed' }, { status: 500 })
   }
 }

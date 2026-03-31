@@ -76,10 +76,15 @@ export const todayDate = (): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date())
 
 /**
- * Returns current time as HH:MM (24-hour).
+ * Returns current wall-clock time in IST as HH:MM (24-hour), matching §3.4.
  */
 export const currentTime = (): string =>
-  new Date().toLocaleTimeString('en-GB', { hour12: false }).slice(0, 5)
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date())
 
 export const generateIPDNumber = (): string => {
   const date = new Date()
