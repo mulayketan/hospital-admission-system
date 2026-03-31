@@ -6,6 +6,7 @@ import { generateAdmissionPDF } from '@/lib/pdf-generator-final'
 
 // Use Node.js runtime for Google Sheets API compatibility
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 export async function GET(
   request: NextRequest, 

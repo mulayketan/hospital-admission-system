@@ -59,20 +59,20 @@ export const getBrowser = async (): Promise<Browser> => {
 
   // ── Production path: @sparticuz/chromium (serverless Chromium) ────────────
   if (isProduction) {
-    try {
-      const executablePath = await chromium.executablePath()
-      browserInstance = await puppeteer.launch({
-        args: [...chromium.args, ...BASE_ARGS, '--disable-features=VizDisplayCompositor'],
-        defaultViewport: chromium.defaultViewport,
-        executablePath,
-        headless: true,
-        ignoreHTTPSErrors: true,
-      })
-      browserLastUsed = Date.now()
-      return browserInstance
-    } catch (err) {
-      console.error('[browser] @sparticuz/chromium launch failed, falling through:', err)
-    }
+    // setGraphicsMode = false → uses --headless=old which does NOT require
+    // libnss3.so. The new headless mode (default in v119+) links NSS3 and
+    // crashes on Vercel's Amazon Linux 2 runtime where that library is absent.
+    chromium.setGraphicsMode = false
+    const executablePath = await chromium.executablePath()
+    browserInstance = await puppeteer.launch({
+      args: [...chromium.args, ...BASE_ARGS, '--disable-features=VizDisplayCompositor'],
+      defaultViewport: chromium.defaultViewport,
+      executablePath,
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true,
+    })
+    browserLastUsed = Date.now()
+    return browserInstance
   }
 
   // ── Local dev path: system Chrome / Chromium ──────────────────────────────
