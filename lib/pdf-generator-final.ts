@@ -500,7 +500,6 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
       format: 'A4', 
       printBackground: true, 
       margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
-      timeout: 30000 // 30 second timeout
     })
     
     return Buffer.from(pdfBuffer)

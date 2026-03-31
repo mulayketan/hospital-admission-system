@@ -302,7 +302,6 @@ const renderPDF = async (
       landscape: orientation === 'landscape',
       printBackground: true,
       margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
-      timeout: 28000,
     })
     return Buffer.from(pdfBuffer)
   } finally {
@@ -1013,7 +1012,6 @@ export const generateCombinedIPDPDF = async ({
     const pdfBuffer = await page.pdf({
       printBackground: true,
       margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
-      timeout: 28000,
     })
     return Buffer.from(pdfBuffer)
   } finally {

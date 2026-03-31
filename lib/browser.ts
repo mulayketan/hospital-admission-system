@@ -57,18 +57,17 @@ export const getBrowser = async (): Promise<Browser> => {
     }
   }
 
-  // ── Production path: @sparticuz/chromium (serverless Chromium) ────────────
+  // ── Production path: @sparticuz/chromium 116 (Chrome 116) ────────────────
+  // Chrome 116 is the highest version compatible with the libnss3.so.3d (v3.53)
+  // shipped by Vercel's Amazon Linux 2 Lambda runtime. Chrome 119+ requires
+  // libnss3 >= 3.79 which AL2 does not provide, causing a hard crash on launch.
   if (isProduction) {
-    // setGraphicsMode = false → uses --headless=old which does NOT require
-    // libnss3.so. The new headless mode (default in v119+) links NSS3 and
-    // crashes on Vercel's Amazon Linux 2 runtime where that library is absent.
-    chromium.setGraphicsMode = false
     const executablePath = await chromium.executablePath()
     browserInstance = await puppeteer.launch({
       args: [...chromium.args, ...BASE_ARGS, '--disable-features=VizDisplayCompositor'],
       defaultViewport: chromium.defaultViewport,
       executablePath,
-      headless: chromium.headless,
+      headless: true,
       ignoreHTTPSErrors: true,
     })
     browserLastUsed = Date.now()
