@@ -9,9 +9,7 @@
  */
 import puppeteer from 'puppeteer-core'
 import type { Browser } from 'puppeteer-core'
-import chromium from '@sparticuz/chromium'
 import fs from 'fs/promises'
-import { execSync } from 'child_process'
 
 let browserInstance: Browser | null = null
 let browserLastUsed = 0
@@ -43,59 +41,22 @@ const pathExists = (p: string) => fs.access(p).then(() => true).catch(() => fals
 const isProduction = process.env.NODE_ENV === 'production'
 
 /**
- * Amazon Linux 2 (Vercel/Lambda) ships NSS libraries as versioned files such as
- * libnss3.so.3d, but the dynamic linker resolves Chromium's DT_NEEDED entry of
- * "libnss3.so" only if an unversioned name exists somewhere in LD_LIBRARY_PATH.
- * There is no unversioned symlink on a minimal AL2 image.
+ * @sparticuz/chromium only extracts `aws.tar.br` (NSS/NSPR and related `.so`
+ * files under `/tmp/aws/lib`) when `isRunningInAwsLambda()` is true. That
+ * check requires `AWS_EXECUTION_ENV` to match /^AWS_Lambda_nodejs/, which
+ * Vercel and several hosts do not set. Without that tarball, Chromium fails at
+ * launch with missing libnss3 / libnspr4.
  *
- * Fix: create symlinks libnss3.so → libnss3.so.3d (etc.) in /tmp, which is
- * writable, then prepend /tmp to LD_LIBRARY_PATH before Chrome launches.
- *
- * This is a no-op on macOS and a no-op if the unversioned names already exist.
+ * Set the env **before** the first dynamic `import('@sparticuz/chromium')` so
+ * the package's top-level code prepends `/tmp/aws/lib` to `LD_LIBRARY_PATH` and
+ * `executablePath()` inflates the AWS bundle.
  */
-function patchNssSymlinks(): void {
-  if (process.platform !== 'linux') return
-
-  const libs = [
-    'libnss3', 'libnssutil3', 'libsmime3', 'libssl3',
-    'libplds4', 'libplc4', 'libnspr4',
-  ]
-  const searchDirs = [
-    '/usr/lib64',
-    '/usr/lib/x86_64-linux-gnu',
-    '/lib/x86_64-linux-gnu',
-    '/lib64',
-    '/usr/lib',
-  ]
-
-  for (const lib of libs) {
-    const target = `/tmp/${lib}.so`
-    // Skip if already present (real file or our symlink)
-    try { execSync(`test -e '${target}'`, { stdio: 'ignore' }); continue } catch {}
-
-    // Find the versioned file (e.g. libnss3.so.3d) in known locations
-    for (const dir of searchDirs) {
-      try {
-        // List versioned names only (exclude the unversioned name itself)
-        const found = execSync(
-          `ls '${dir}/${lib}.so'* 2>/dev/null | grep -v '\\.so$' | head -1`,
-          { encoding: 'utf8' }
-        ).trim()
-        if (found) {
-          execSync(`ln -sf '${found}' '${target}'`, { stdio: 'ignore' })
-          console.log(`[browser] NSS symlink: ${found} → ${target}`)
-          break
-        }
-      } catch {}
-    }
-  }
-
-  // Prepend /tmp so the dynamic linker finds our unversioned symlinks
-  const existing = process.env.LD_LIBRARY_PATH ?? ''
-  if (!existing.split(':').includes('/tmp')) {
-    process.env.LD_LIBRARY_PATH = `/tmp:${existing}`
-    console.log(`[browser] LD_LIBRARY_PATH → ${process.env.LD_LIBRARY_PATH}`)
-  }
+function ensureSparticuzAwsBundle(): void {
+  if (process.env.NODE_ENV !== 'production') return
+  const cur = process.env.AWS_EXECUTION_ENV ?? ''
+  if (/^AWS_Lambda_nodejs/.test(cur)) return
+  process.env.AWS_EXECUTION_ENV = 'AWS_Lambda_nodejs20.x'
+  console.log('[browser] Set AWS_EXECUTION_ENV so @sparticuz/chromium extracts aws.tar.br')
 }
 
 /** Returns a running (or recycled) browser instance. */
@@ -115,15 +76,12 @@ export const getBrowser = async (): Promise<Browser> => {
   }
 
   // ── Production path: @sparticuz/chromium 116 (Chrome 116) ────────────────
-  // Chrome 116 is the highest version compatible with the libnss3.so.3d (v3.53)
-  // shipped by Vercel's Amazon Linux 2 Lambda runtime. Chrome 119+ requires
-  // libnss3 >= 3.79 which AL2 does not provide, causing a hard crash on launch.
-  //
-  // AL2 ships NSS as versioned files (libnss3.so.3d) but not as unversioned
-  // symlinks (libnss3.so). patchNssSymlinks() creates those symlinks in /tmp
-  // and adds /tmp to LD_LIBRARY_PATH so the dynamic linker resolves them.
+  // Dynamic import so `ensureSparticuzAwsBundle()` runs before the package
+  // evaluates (static import would load chromium before we could set
+  // AWS_EXECUTION_ENV). See ensureSparticuzAwsBundle().
   if (isProduction) {
-    patchNssSymlinks()
+    ensureSparticuzAwsBundle()
+    const chromium = (await import('@sparticuz/chromium')).default
     const executablePath = await chromium.executablePath()
     browserInstance = await puppeteer.launch({
       args: [...chromium.args, ...BASE_ARGS, '--disable-features=VizDisplayCompositor'],
