@@ -143,6 +143,17 @@ const parseDateStr = (s: string): Date => {
   return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10))
 }
 
+/** Drug order `startDate` (YYYY-MM-DD) → D/M/YYYY for PDF (matches data-entry UI). */
+const formatDrugStartDatePdf = (s: string | null | undefined): string => {
+  if (!s?.trim()) return '—'
+  const m = s.trim().match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!m) return esc(s.trim())
+  const day = parseInt(m[3], 10)
+  const month = parseInt(m[2], 10)
+  const year = m[1]
+  return esc(`${day}/${month}/${year}`)
+}
+
 /** Format a Date as "D/M" (no year, for day-column headers). */
 const fmtDayHeader = (d: Date): string => `${d.getDate()}/${d.getMonth() + 1}`
 
@@ -616,9 +627,10 @@ export const generateNursingChartPDF = async ({
 //    DRUG_ORDER_DATE_COLUMNS_PER_PAGE date columns per page; PTO for continuations.
 // ---------------------------------------------------------------------------
 
-const DRUG_ORDER_NAME_PCT = 46
-const DRUG_ORDER_FREQ_PCT = 12
-const DRUG_ORDER_ROUTE_PCT = 12
+const DRUG_ORDER_NAME_PCT = 38
+const DRUG_ORDER_FREQ_PCT = 11
+const DRUG_ORDER_ROUTE_PCT = 11
+const DRUG_ORDER_START_PCT = 9
 
 export const generateDrugOrderPDF = async ({
   patient,
@@ -706,13 +718,17 @@ export const generateDrugOrderPDF = async ({
     const namePct = DRUG_ORDER_NAME_PCT
     const freqPct = DRUG_ORDER_FREQ_PCT
     const routePct = DRUG_ORDER_ROUTE_PCT
-    const datePct = Math.floor((100 - namePct - freqPct - routePct) / numCols)
+    const startPct = DRUG_ORDER_START_PCT
+    const datePct = Math.floor(
+      (100 - namePct - freqPct - routePct - startPct) / numCols
+    )
 
-    // Date column headers are blank — staff fills dates on the printed form
+    // Date column headers stay blank for staff-written calendar dates; Start shows system date per row.
     const headerRow = [
       `<th style="width:${namePct}%;">Name of Drug</th>`,
       `<th style="width:${freqPct}%;">Freq.</th>`,
       `<th style="width:${routePct}%;">Route</th>`,
+      `<th style="width:${startPct}%;text-align:center;">Start</th>`,
       ...Array.from({ length: numCols }, () =>
         `<th style="width:${datePct}%;text-align:center;font-weight:bold;">Date:<br/><span style="font-weight:normal;font-size:8px;">&nbsp;</span></th>`
       ),
@@ -724,6 +740,7 @@ export const generateDrugOrderPDF = async ({
           <td class="cell-wrap">${esc(drug.drugName)}</td>
           <td style="text-align:center">${esc(drug.frequency)}</td>
           <td style="text-align:center">${esc(drug.route)}</td>
+          <td style="text-align:center;font-size:9px;white-space:nowrap;">${formatDrugStartDatePdf(drug.startDate)}</td>
           ${Array.from({ length: numCols }, (_, i) => {
             const val = cellValue(drug, daysFrom + i)
             return `<td style="text-align:center;vertical-align:top;font-size:9px;">${val}</td>`
@@ -1108,11 +1125,15 @@ async function buildDrugOrderSection(
     const namePct = DRUG_ORDER_NAME_PCT
     const freqPct = DRUG_ORDER_FREQ_PCT
     const routePct = DRUG_ORDER_ROUTE_PCT
-    const datePct = Math.floor((100 - namePct - freqPct - routePct) / numCols)
+    const startPct = DRUG_ORDER_START_PCT
+    const datePct = Math.floor(
+      (100 - namePct - freqPct - routePct - startPct) / numCols
+    )
     const headerRow = [
       `<th style="width:${namePct}%">Name of Drug</th>`,
       `<th style="width:${freqPct}%">Freq.</th>`,
       `<th style="width:${routePct}%">Route</th>`,
+      `<th style="width:${startPct}%;text-align:center">Start</th>`,
       ...Array.from({ length: numCols }, () =>
         `<th style="width:${datePct}%;text-align:center;font-weight:bold;">Date:<br/><span style="font-weight:normal;font-size:7.5px;">&nbsp;</span></th>`
       ),
@@ -1123,6 +1144,7 @@ async function buildDrugOrderSection(
           <td class="cell-wrap">${esc(drug.drugName)}</td>
           <td style="text-align:center">${esc(drug.frequency)}</td>
           <td style="text-align:center;font-size:8.5px;">${esc(drug.route)}</td>
+          <td style="text-align:center;font-size:8px;white-space:nowrap">${formatDrugStartDatePdf(drug.startDate)}</td>
           ${Array.from({ length: numCols }, (_, i) => {
             const v = cellValue(drug, from + i)
             return `<td style="text-align:center;vertical-align:top;font-size:8px;">${v}</td>`

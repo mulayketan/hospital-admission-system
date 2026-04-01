@@ -628,7 +628,7 @@ All PDFs must match the physical Zawar Hospital form layout exactly, for printin
   - Drug Allergy cell is **blank** if not entered (no default value; never shows "NKDA" unless explicitly stored)
   - All values sourced from denormalised columns on `DrugOrders` row
 - **Table columns:** Name of Drug · Freq. · Route · Date: (×7 blank date columns)
-  - Columns removed: `#` (row number) and `Start Date` — not on physical form
+  - Column `#` (row number) not used. **Start** column shows each row’s `startDate` (D/M/YYYY) from data entry; blank **Date:** columns remain for handwritten calendar dates on paper.
   - Date column headers show only `"Date:"` with a blank writeable line — **staff fills the actual date on the printed paper**. No computed dates are pre-printed.
   - 3 date columns per page with wider Name of Drug / Freq. / Route columns
   - Pages: days 1–3, 4–6, … up to 19–21; continuation sheets marked "PTO" when after page 1
@@ -1066,7 +1066,7 @@ scripts/create-sheets.ts    ← +7 new tab creation
 | Drug Order Sheet orientation | Portrait A4 (matches physical form) |
 | Drug Order date column headers | Blank `"Date:"` only — staff writes actual dates on printed paper; no pre-computed dates in PDF |
 | Drug Order columns per page | 3 date columns per page on portrait A4; wider Name / Freq. / Route; up to 7 pages for days 1–21 |
-| Drug Order columns removed | `#` (row number) and `Start Date` removed — not present on physical form |
+| Drug Order PDF columns | `#` omitted; **Start** (system date per row) + 3× blank **Date:** per page |
 | Drug Allergy default | **No default** — field is blank if not entered; "NKDA" is never auto-filled |
 | Multi-select investigations | Advice form allows multiple investigation names per entry; stored as comma-separated string in `investigationName` |
 | Advice status control | Native HTML `<select>` (not Radix UI Select) to avoid lazy-mount rendering issues |
@@ -1113,7 +1113,7 @@ Changes applied after the baseline spec was used for development. All sections u
 | Nursing Chart orientation | Landscape | **Portrait** |
 | Drug Order Sheet orientation | Landscape | **Portrait** |
 | Drug Order patient strip | Vertical left sidebar | **Horizontal row below header** |
-| Drug Order columns | `#` · Name · Freq · Route · Start · 1…15 (numbered days + date sub-row) | Name · Freq. · Route · `Date:` (×3 blank per page; wider text columns) |
+| Drug Order columns | `#` · Name · Freq · Route · Start · 1…15 (numbered days + date sub-row) | Name · Freq. · Route · **Start** (D/M/YYYY from sheet) · `Date:` (×3 blank per page) |
 | Drug Order pages | Page 1: days 1–15; PTO page 2: days 16–36 | Up to 7 pages: days 1–3, 4–6, … 19–21; PTO on pages after the first |
 | Drug Order date headers | Computed calendar dates (e.g. 31/3, 1/4) | **Blank** — staff writes dates on printed paper |
 | Drug Allergy default | "NKDA" when not entered | **Blank** when not entered |
