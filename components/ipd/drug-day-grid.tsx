@@ -5,10 +5,17 @@ import { toast } from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { translations } from '@/lib/translations'
 import type { DrugOrder } from '@/lib/ipd-types'
-import { DRUG_ORDER_DATE_COLUMNS_PER_PAGE } from '@/lib/ipd-types'
-import { X, Check } from 'lucide-react'
+import { DRUG_ORDER_DATE_COLUMNS_PER_PAGE, FREQUENCY_OPTIONS, ROUTE_OPTIONS } from '@/lib/ipd-types'
+import { X, Check, Pencil } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
 interface DrugDayGridProps {
@@ -63,11 +70,18 @@ export const DrugDayGrid = ({
 }: DrugDayGridProps) => {
   const t = translations[language]
   const { data: session } = useSession()
-  const isAdmin = session?.user?.role === 'ADMIN'
+  const canManageOrders = Boolean(session?.user)
 
   const [popup, setPopup] = useState<CellPopup | null>(null)
   const [popupValue, setPopupValue] = useState('')
   const [savingCell, setSavingCell] = useState(false)
+
+  const [editOrder, setEditOrder] = useState<DrugOrder | null>(null)
+  const [editDrugName, setEditDrugName] = useState('')
+  const [editFrequency, setEditFrequency] = useState<string>('BD')
+  const [editRoute, setEditRoute] = useState<string>('IV')
+  const [editStartDate, setEditStartDate] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const dayColumns = getDayColumns(orders)
 
@@ -80,6 +94,44 @@ export const DrugDayGrid = ({
   const closePopup = () => {
     setPopup(null)
     setPopupValue('')
+  }
+
+  const openEditOrder = (order: DrugOrder) => {
+    setEditOrder(order)
+    setEditDrugName(order.drugName)
+    setEditFrequency(order.frequency)
+    setEditRoute(order.route)
+    setEditStartDate(order.startDate)
+  }
+
+  const closeEditOrder = () => {
+    setEditOrder(null)
+    setSavingEdit(false)
+  }
+
+  const saveEditOrder = async () => {
+    if (!editOrder) return
+    setSavingEdit(true)
+    try {
+      const res = await fetch(`/api/ipd/drug-orders/${editOrder.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          drugName: editDrugName.trim(),
+          frequency: editFrequency,
+          route: editRoute,
+          startDate: editStartDate,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success(t.entryUpdated)
+      closeEditOrder()
+      onRefresh()
+    } catch {
+      toast.error(t.entryError)
+    } finally {
+      setSavingEdit(false)
+    }
   }
 
   const saveCell = async () => {
@@ -170,16 +222,28 @@ export const DrugDayGrid = ({
                   </td>
                 ))}
                 <td className="px-2 py-2">
-                  {isAdmin && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (confirm(t.deleteConfirm)) onDelete(order.id)
-                      }}
-                    >
-                      <X className="h-4 w-4 text-red-500" />
-                    </Button>
+                  {canManageOrders && (
+                    <div className="flex items-center gap-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        title={t.editDrugOrder}
+                        onClick={() => openEditOrder(order)}
+                      >
+                        <Pencil className="h-4 w-4 text-blue-600" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          if (confirm(t.deleteConfirm)) onDelete(order.id)
+                        }}
+                      >
+                        <X className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
                   )}
                 </td>
               </tr>
@@ -202,6 +266,74 @@ export const DrugDayGrid = ({
           {t.save}
         </Button>
       </div>
+
+      {editOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-800">{t.editDrugOrder}</h3>
+              <button type="button" onClick={closeEditOrder} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div>
+              <Label>{t.drugName}</Label>
+              <Input value={editDrugName} onChange={(e) => setEditDrugName(e.target.value)} className="mt-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{t.frequency}</Label>
+                <Select value={editFrequency} onValueChange={setEditFrequency}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FREQUENCY_OPTIONS.map((f) => (
+                      <SelectItem key={f} value={f}>
+                        {f}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{t.route}</Label>
+                <Select value={editRoute} onValueChange={setEditRoute}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROUTE_OPTIONS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>{t.startDate}</Label>
+              <Input
+                type="date"
+                value={editStartDate}
+                onChange={(e) => setEditStartDate(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <p className="text-xs text-gray-500">{t.editDrugOrderHint}</p>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={closeEditOrder}>
+                {t.cancel}
+              </Button>
+              <Button type="button" onClick={saveEditOrder} disabled={savingEdit} className="flex items-center gap-1">
+                <Check className="h-4 w-4" />
+                {savingEdit ? '...' : t.save}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Day cell popup */}
       {popup && (

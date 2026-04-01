@@ -2,7 +2,7 @@ import { ZodError } from 'zod'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { DrugOrderModel } from '@/lib/sheets-models'
+import { DrugOrderModel, MedicineModel } from '@/lib/sheets-models'
 import { drugOrderSchema, zodErrorBody } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
@@ -48,6 +48,11 @@ export async function POST(request: NextRequest) {
       days: validated.days ?? {},
       medOfficerSignature: validated.medOfficerSignature ?? null,
     })
+
+    await MedicineModel.ensureInMaster(order.drugName, {
+      defaultFrequency: order.frequency,
+      defaultRoute: order.route,
+    }).catch((e) => console.error('ensureInMaster after drug order create:', e))
 
     return NextResponse.json(order, { status: 201 })
   } catch (error) {

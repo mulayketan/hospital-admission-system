@@ -2,7 +2,7 @@ import { ZodError } from 'zod'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { DrugOrderModel } from '@/lib/sheets-models'
+import { DrugOrderModel, MedicineModel } from '@/lib/sheets-models'
 import { drugOrderSchema , zodErrorBody } from '@/lib/validations'
 
 export async function PUT(
@@ -35,6 +35,13 @@ export async function PUT(
       return NextResponse.json({ error: 'Drug order not found' }, { status: 404 })
     }
 
+    if (partial.drugName !== undefined || partial.frequency !== undefined || partial.route !== undefined) {
+      await MedicineModel.ensureInMaster(updated.drugName, {
+        defaultFrequency: updated.frequency,
+        defaultRoute: updated.route,
+      }).catch((e) => console.error('ensureInMaster after drug order update:', e))
+    }
+
     return NextResponse.json(updated)
   } catch (error) {
     if (error instanceof ZodError) {
@@ -53,10 +60,6 @@ export async function DELETE(
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    if (session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden: ADMIN role required' }, { status: 403 })
     }
 
     const { id } = await params

@@ -725,7 +725,7 @@ export class InsuranceCompanyModel {
   }
 }
 
-// Medicine model (master reference — read-only from API)
+// Medicine model (master reference; API may append when new drugs are ordered)
 export class MedicineModel {
   static async findMany(): Promise<Medicine[]> {
     try {
@@ -759,6 +759,52 @@ export class MedicineModel {
       createdAt: m.createdAt || '',
       updatedAt: m.updatedAt || '',
     }
+  }
+
+  private static normName(s: string): string {
+    return s.trim().toLowerCase().replace(/\s+/g, ' ')
+  }
+
+  /**
+   * Append a row to Medicines if no row has the same name (case-insensitive).
+   * Used when staff add a drug order or when treatment is synced from the progress report.
+   */
+  static async ensureInMaster(
+    name: string,
+    hints?: { defaultFrequency?: string | null; defaultRoute?: string | null }
+  ): Promise<void> {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    const existing = await this.findMany()
+    const want = this.normName(trimmed)
+    if (existing.some((m) => this.normName(m.name || '') === want)) return
+
+    const now = nowIST()
+    const category = this.inferCategoryFromDrugLabel(trimmed)
+    const row = [
+      generateId(),
+      sanitizeSheetValue(trimmed),
+      category,
+      '',
+      hints?.defaultFrequency?.trim() || '',
+      hints?.defaultRoute?.trim() || '',
+      now,
+      now,
+    ]
+    await appendSheet(SHEET_NAMES.MEDICINES, [row])
+  }
+
+  /** Best-effort category for master sheet from free-text drug line (INJ/TAB/…). */
+  static inferCategoryFromDrugLabel(label: string): Medicine['category'] {
+    const u = label.trim().toUpperCase()
+    if (u.startsWith('INJ.') || u.startsWith('INJ ')) return 'INJ'
+    if (u.startsWith('IV ')) return 'IV'
+    if (u.startsWith('TAB ')) return 'TAB'
+    if (u.startsWith('SYP ')) return 'SYP'
+    if (u.startsWith('CAP ')) return 'CAP'
+    if (u.startsWith('DROP')) return 'DROP'
+    if (u.startsWith('CREAM') || u.startsWith('OINT')) return 'CREAM'
+    return 'OTHER'
   }
 }
 

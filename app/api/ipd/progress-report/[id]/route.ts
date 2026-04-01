@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { ProgressReportModel } from '@/lib/sheets-models'
+import { syncProgressTreatmentToDrugOrders } from '@/lib/treatment-drug-sync'
 import { progressReportEntrySchema , zodErrorBody } from '@/lib/validations'
 
 export async function PUT(
@@ -44,6 +45,10 @@ export async function PUT(
 
     if (!updated) {
       return NextResponse.json({ error: 'Entry not found' }, { status: 404 })
+    }
+
+    if (partial.treatment !== undefined) {
+      await syncProgressTreatmentToDrugOrders(updated)
     }
 
     return NextResponse.json(updated)

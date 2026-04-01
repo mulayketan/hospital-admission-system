@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { ProgressReportModel } from '@/lib/sheets-models'
+import { syncProgressTreatmentToDrugOrders } from '@/lib/treatment-drug-sync'
 import { progressReportEntrySchema, zodErrorBody } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
@@ -50,6 +51,8 @@ export async function POST(request: NextRequest) {
       staffName: validated.staffName,
       doctorSignature: validated.doctorSignature ?? null,
     })
+
+    await syncProgressTreatmentToDrugOrders(entry)
 
     return NextResponse.json(entry, { status: 201 })
   } catch (error) {

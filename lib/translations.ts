@@ -159,6 +159,10 @@ export const translations = {
     editCell: "Edit Times",
     administrationTimes: "Administration Times",
     timesPlaceholder: "e.g. 8AM,8PM or 8AM,2PM,8PM",
+    actions: "Actions",
+    editDrugOrder: "Edit drug order",
+    editDrugOrderHint:
+      'Imported from progress report or added manually — new names are saved to the Medicines list.',
 
     // Advice
     patientAdvice: "Patient Advice",
@@ -350,6 +354,10 @@ export const translations = {
     editCell: "वेळ संपादित करा",
     administrationTimes: "देण्याच्या वेळा",
     timesPlaceholder: "उदा. 8AM,8PM",
+    actions: "क्रिया",
+    editDrugOrder: "औषध आदेश संपादित करा",
+    editDrugOrderHint:
+      'प्रगती अहवालातून आयात किंवा स्वतः जोडले — नवीन नावे Medicines यादीत सेव्ह होतात.',
 
     // Advice
     patientAdvice: "रुग्ण सल्ला",
