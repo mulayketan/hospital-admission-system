@@ -630,8 +630,8 @@ All PDFs must match the physical Zawar Hospital form layout exactly, for printin
 - **Table columns:** Name of Drug · Freq. · Route · Date: (×7 blank date columns)
   - Columns removed: `#` (row number) and `Start Date` — not on physical form
   - Date column headers show only `"Date:"` with a blank writeable line — **staff fills the actual date on the printed paper**. No computed dates are pre-printed.
-  - 7 date columns per page (matches portrait A4 proportions)
-  - Page 1: columns 1–7; Page 2 ("PTO"): columns 8–14 if any day8–day14 data exists; Page 3: 15–21 if needed
+  - 3 date columns per page with wider Name of Drug / Freq. / Route columns
+  - Pages: days 1–3, 4–6, … up to 19–21; continuation sheets marked "PTO" when after page 1
   - Drug administration times (comma-separated) are still rendered in cells in the correct day-order sequence
 - **Footer:** Medical Officer Signature block (bottom-left)
 
@@ -642,7 +642,7 @@ Four forms concatenated — each starting on a fresh page. CSS named `@page` rul
 1. Progress Report (portrait) — includes Advice box
 2. Nursing Notes (portrait)
 3. Nursing Chart (**portrait**)
-4. Drug Order Sheet (**portrait**; up to 3 pages for days 1–21)
+4. Drug Order Sheet (**portrait**; up to 7 pages for days 1–21, 3 date columns per page)
 
 - Document title: `"IPD Report — <Patient Full Name>"`
 
@@ -959,7 +959,7 @@ export interface PatientAdvice {
 | PDF — Progress Report | Download | Diagnosis block, clinical table, Advice box present |
 | PDF — no advice | Download Progress Report with no advice | Advice box absent |
 | PDF — Nursing Notes | Download | UHID top-right; no Bed No; two separate columns |
-| PDF — Drug Orders | Download | Portrait; horizontal patient strip below header; blank "Date:" column headers; 7 columns per page; PTO page 2 if days 8–14 data exists |
+| PDF — Drug Orders | Download | Portrait; horizontal patient strip below header; blank "Date:" column headers; 3 date columns per page; PTO on continuation pages when data spans beyond page 1 |
 | PDF — Drug Orders drug allergy blank | Download with no drug allergy entered | Drug Allergy cell is blank (not "NKDA") |
 | PDF — Nursing Chart | Download | Portrait A4; vitals table correct |
 | Investigation multi-select | In Advice form, select "Blood Test" category, then select CBC + LFT + KFT | All three appear as badge pills in Investigation field; saved as "CBC, LFT, KFT" in sheet |
@@ -1065,7 +1065,7 @@ scripts/create-sheets.ts    ← +7 new tab creation
 | Nursing Chart orientation | Portrait A4 (matches physical form) |
 | Drug Order Sheet orientation | Portrait A4 (matches physical form) |
 | Drug Order date column headers | Blank `"Date:"` only — staff writes actual dates on printed paper; no pre-computed dates in PDF |
-| Drug Order columns per page | 7 date columns per page on portrait A4; up to 3 pages (days 1–7, 8–14, 15–21) |
+| Drug Order columns per page | 3 date columns per page on portrait A4; wider Name / Freq. / Route; up to 7 pages for days 1–21 |
 | Drug Order columns removed | `#` (row number) and `Start Date` removed — not present on physical form |
 | Drug Allergy default | **No default** — field is blank if not entered; "NKDA" is never auto-filled |
 | Multi-select investigations | Advice form allows multiple investigation names per entry; stored as comma-separated string in `investigationName` |
@@ -1113,8 +1113,8 @@ Changes applied after the baseline spec was used for development. All sections u
 | Nursing Chart orientation | Landscape | **Portrait** |
 | Drug Order Sheet orientation | Landscape | **Portrait** |
 | Drug Order patient strip | Vertical left sidebar | **Horizontal row below header** |
-| Drug Order columns | `#` · Name · Freq · Route · Start · 1…15 (numbered days + date sub-row) | Name · Freq. · Route · `Date:` (×7 blank) |
-| Drug Order pages | Page 1: days 1–15; PTO page 2: days 16–36 | Page 1: days 1–7; PTO page 2: days 8–14; PTO page 3: days 15–21 |
+| Drug Order columns | `#` · Name · Freq · Route · Start · 1…15 (numbered days + date sub-row) | Name · Freq. · Route · `Date:` (×3 blank per page; wider text columns) |
+| Drug Order pages | Page 1: days 1–15; PTO page 2: days 16–36 | Up to 7 pages: days 1–3, 4–6, … 19–21; PTO on pages after the first |
 | Drug Order date headers | Computed calendar dates (e.g. 31/3, 1/4) | **Blank** — staff writes dates on printed paper |
 | Drug Allergy default | "NKDA" when not entered | **Blank** when not entered |
 | Combined PDF Drug Order | Landscape | **Portrait** |

@@ -127,11 +127,12 @@ describe('IPD PDF generator templates', () => {
     expect(capturedHtml).toContain('PTO')
   })
 
-  it('generateDrugOrderPDF with 14 days does not contain PTO', async () => {
+  it('generateDrugOrderPDF with data only in first page (3 days) does not contain PTO', async () => {
     const { generateDrugOrderPDF } = getPdfModule()
-    const dayMap: Record<string, string> = {}
-    for (let day = 1; day <= 14; day += 1) {
-      dayMap[`day${day}`] = '8AM,8PM'
+    const dayMap: Record<string, string> = {
+      day1: '8AM,8PM',
+      day2: '8AM,8PM',
+      day3: '8AM,8PM',
     }
 
     await generateDrugOrderPDF({

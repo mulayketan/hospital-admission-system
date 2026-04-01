@@ -1,7 +1,11 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { getBrowser } from './browser'
-import { WARD_DISPLAY_NAMES } from './ipd-types'
+import {
+  DRUG_ORDER_DATE_COLUMNS_PER_PAGE,
+  DRUG_ORDER_PDF_MAX_DAYS,
+  WARD_DISPLAY_NAMES,
+} from './ipd-types'
 
 // ---------------------------------------------------------------------------
 // TypeScript interfaces (§10 of spec)
@@ -609,8 +613,12 @@ export const generateNursingChartPDF = async ({
 // ---------------------------------------------------------------------------
 // 4. Drug Order Sheet PDF (Portrait A4)  §8.4
 //    Columns match physical template: Name of Drug | Freq. | Route | Date: D/M | …
-//    7 date columns per page; PTO pages for additional days.
+//    DRUG_ORDER_DATE_COLUMNS_PER_PAGE date columns per page; PTO for continuations.
 // ---------------------------------------------------------------------------
+
+const DRUG_ORDER_NAME_PCT = 46
+const DRUG_ORDER_FREQ_PCT = 12
+const DRUG_ORDER_ROUTE_PCT = 12
 
 export const generateDrugOrderPDF = async ({
   patient,
@@ -691,14 +699,13 @@ export const generateDrugOrderPDF = async ({
       </div>
     </div>`
 
-  // 7 date columns per page matches physical template proportions on portrait A4
-  const COLS_PER_PAGE = 7
+  const COLS_PER_PAGE = DRUG_ORDER_DATE_COLUMNS_PER_PAGE
 
   const buildPage = (daysFrom: number, daysTo: number, isPto: boolean): string => {
     const numCols = daysTo - daysFrom + 1
-    const namePct = 38
-    const freqPct = 10
-    const routePct = 9
+    const namePct = DRUG_ORDER_NAME_PCT
+    const freqPct = DRUG_ORDER_FREQ_PCT
+    const routePct = DRUG_ORDER_ROUTE_PCT
     const datePct = Math.floor((100 - namePct - freqPct - routePct) / numCols)
 
     // Date column headers are blank — staff fills dates on the printed form
@@ -757,9 +764,8 @@ export const generateDrugOrderPDF = async ({
       </div>
     </div>`
 
-  // Build pages: 7 date columns each
   const pages: string[] = []
-  for (let start = 1; start <= 21; start += COLS_PER_PAGE) {
+  for (let start = 1; start <= DRUG_ORDER_PDF_MAX_DAYS; start += COLS_PER_PAGE) {
     const end = start + COLS_PER_PAGE - 1
     if (start === 1 || hasDaysData(start, end)) {
       pages.push(buildPage(start, end, start > 1))
@@ -1095,13 +1101,13 @@ async function buildDrugOrderSection(
       </div>
     </div>`
 
-  const COLS_PER_PAGE = 7
+  const COLS_PER_PAGE = DRUG_ORDER_DATE_COLUMNS_PER_PAGE
 
   const buildGrid = (from: number, to: number, isPto: boolean): string => {
     const numCols = to - from + 1
-    const namePct = 38
-    const freqPct = 10
-    const routePct = 9
+    const namePct = DRUG_ORDER_NAME_PCT
+    const freqPct = DRUG_ORDER_FREQ_PCT
+    const routePct = DRUG_ORDER_ROUTE_PCT
     const datePct = Math.floor((100 - namePct - freqPct - routePct) / numCols)
     const headerRow = [
       `<th style="width:${namePct}%">Name of Drug</th>`,
@@ -1153,9 +1159,8 @@ async function buildDrugOrderSection(
       <div></div>
     </div></div>`
 
-  // Build portrait pages, 7 date-columns each
   const pages: string[] = []
-  for (let start = 1; start <= 21; start += COLS_PER_PAGE) {
+  for (let start = 1; start <= DRUG_ORDER_PDF_MAX_DAYS; start += COLS_PER_PAGE) {
     const end = start + COLS_PER_PAGE - 1
     if (start === 1 || hasDaysData(start, end)) {
       pages.push(buildGrid(start, end, start > 1))

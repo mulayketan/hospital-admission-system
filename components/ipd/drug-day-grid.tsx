@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { translations } from '@/lib/translations'
 import type { DrugOrder } from '@/lib/ipd-types'
-import { Pencil, X, Check } from 'lucide-react'
+import { DRUG_ORDER_DATE_COLUMNS_PER_PAGE } from '@/lib/ipd-types'
+import { X, Check } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
 interface DrugDayGridProps {
@@ -116,25 +117,30 @@ export const DrugDayGrid = ({
     <div className="space-y-4">
       {/* Horizontal scrollable grid */}
       <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="text-xs divide-y divide-gray-200" style={{ minWidth: '900px' }}>
+        <p className="text-xs text-gray-500 px-2 py-1 bg-gray-50 border-b border-gray-200">
+          Day columns align with the order sheet PDF: {DRUG_ORDER_DATE_COLUMNS_PER_PAGE} &quot;Date:&quot; columns per printed page (scroll for more days).
+        </p>
+        <table className="text-xs divide-y divide-gray-200" style={{ minWidth: '960px' }}>
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-3 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 z-10 min-w-[160px]">
+              <th className="px-3 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 z-10 min-w-[220px]">
                 Drug
               </th>
-              <th className="px-2 py-2 text-left font-medium text-gray-500 whitespace-nowrap">
+              <th className="px-3 py-2 text-left font-medium text-gray-500 whitespace-nowrap min-w-[72px]">
                 Freq
               </th>
-              <th className="px-2 py-2 text-left font-medium text-gray-500 whitespace-nowrap">
+              <th className="px-3 py-2 text-left font-medium text-gray-500 whitespace-nowrap min-w-[100px]">
                 Route
               </th>
               <th className="px-2 py-2 text-left font-medium text-gray-500 whitespace-nowrap">
                 Start
               </th>
-              {dayColumns.map((col) => (
+              {dayColumns.map((col, idx) => (
                 <th
                   key={col.key}
-                  className="px-2 py-2 text-center font-medium text-gray-500 whitespace-nowrap min-w-[56px]"
+                  className={`px-2 py-2 text-center font-medium text-gray-500 whitespace-nowrap min-w-[72px] ${
+                    idx % DRUG_ORDER_DATE_COLUMNS_PER_PAGE === 0 ? 'border-l-2 border-gray-400' : ''
+                  }`}
                 >
                   {col.label}
                 </th>
@@ -145,16 +151,18 @@ export const DrugDayGrid = ({
           <tbody className="bg-white divide-y divide-gray-200">
             {orders.map((order) => (
               <tr key={order.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2 font-medium text-gray-800 sticky left-0 bg-white z-10">
-                  {order.drugName}
+                <td className="px-3 py-2 font-medium text-gray-800 sticky left-0 bg-white z-10 max-w-[280px]">
+                  <span className="line-clamp-3">{order.drugName}</span>
                 </td>
-                <td className="px-2 py-2 text-gray-600">{order.frequency}</td>
-                <td className="px-2 py-2 text-gray-600">{order.route}</td>
+                <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{order.frequency}</td>
+                <td className="px-3 py-2 text-gray-600">{order.route}</td>
                 <td className="px-2 py-2 text-gray-600 whitespace-nowrap">{order.startDate}</td>
-                {dayColumns.map((col) => (
+                {dayColumns.map((col, idx) => (
                   <td
                     key={col.key}
-                    className="px-1 py-1 text-center align-top cursor-pointer hover:bg-blue-50 transition-colors"
+                    className={`px-1 py-1 text-center align-top cursor-pointer hover:bg-blue-50 transition-colors ${
+                      idx % DRUG_ORDER_DATE_COLUMNS_PER_PAGE === 0 ? 'border-l-2 border-gray-300' : ''
+                    }`}
                     onClick={() => openPopup(order, col.key)}
                     title={`Click to edit ${col.label}`}
                   >

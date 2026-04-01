@@ -110,7 +110,7 @@ export const IpdPdfExport = ({ patient, language }: IpdPdfExportProps) => {
           <PdfButton form="drug-orders" label={t.drugOrderPdf} />
 
           <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-            Drug Order PDF shows up to 21 calendar days (3 pages of 7 columns each).
+            Drug Order PDF shows up to 21 calendar days (7 pages, 3 date columns per page).
             For stays longer than 21 days, add a new drug row with a later start date — see §4.6.1.
           </p>
 

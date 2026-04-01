@@ -91,6 +91,12 @@ export interface DrugOrder {
   updatedAt: string
 }
 
+/** Blank "Date:" columns per portrait page on the printed/PDF order sheet. */
+export const DRUG_ORDER_DATE_COLUMNS_PER_PAGE = 3
+
+/** Last day index included on Drug Order PDF (day 1 = first column on page 1). */
+export const DRUG_ORDER_PDF_MAX_DAYS = 21
+
 export interface PatientAdvice {
   id: string
   patientId: string
