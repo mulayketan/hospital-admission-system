@@ -20,13 +20,13 @@ export async function PUT(
     const partial = patientAdviceSchema.partial().parse(body)
     const existing = await PatientAdviceModel.findById(id)
     const patient = existing ? await PatientModel.findById(existing.patientId) : null
-    const advisedBy = partial.advisedBy ?? patient?.treatingDoctor
+    const advisedBy = partial.advisedBy ?? patient?.treatingDoctor ?? undefined
 
     const updated = await PatientAdviceModel.update(id, {
       ...(partial.dateTime !== undefined && { dateTime: partial.dateTime }),
       ...(partial.category !== undefined && { category: partial.category }),
       ...(partial.investigationName !== undefined && { investigationName: partial.investigationName }),
-      ...(advisedBy !== undefined && { advisedBy }),
+      ...(advisedBy !== undefined && { advisedBy: advisedBy as string }),
       ...(partial.status !== undefined && { status: partial.status }),
       ...(partial.reportNotes !== undefined && { reportNotes: partial.reportNotes ?? null }),
     })

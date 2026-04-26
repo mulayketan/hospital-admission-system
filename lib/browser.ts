@@ -211,7 +211,6 @@ export const getBrowser = async (): Promise<Browser> => {
       defaultViewport: chromium.defaultViewport,
       executablePath,
       headless: true,
-      ignoreHTTPSErrors: true,
     })
     browserLastUsed = Date.now()
     return browserInstance
@@ -260,7 +259,6 @@ export const getBrowser = async (): Promise<Browser> => {
     executablePath: localPath,
     headless: true,
     args: platformArgs,
-    ignoreHTTPSErrors: true,
     // Give Chrome extra time on first launch on slower machines
     timeout: 60_000,
   })
