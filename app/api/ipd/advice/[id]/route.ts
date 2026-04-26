@@ -2,7 +2,7 @@ import { ZodError } from 'zod'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { PatientAdviceModel } from '@/lib/sheets-models'
+import { PatientAdviceModel, PatientModel } from '@/lib/sheets-models'
 import { patientAdviceSchema , zodErrorBody } from '@/lib/validations'
 
 export async function PUT(
@@ -18,13 +18,15 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     const partial = patientAdviceSchema.partial().parse(body)
+    const existing = await PatientAdviceModel.findById(id)
+    const patient = existing ? await PatientModel.findById(existing.patientId) : null
+    const advisedBy = partial.advisedBy ?? patient?.treatingDoctor
 
     const updated = await PatientAdviceModel.update(id, {
       ...(partial.dateTime !== undefined && { dateTime: partial.dateTime }),
       ...(partial.category !== undefined && { category: partial.category }),
       ...(partial.investigationName !== undefined && { investigationName: partial.investigationName }),
-      ...(partial.notes !== undefined && { notes: partial.notes ?? null }),
-      ...(partial.advisedBy !== undefined && { advisedBy: partial.advisedBy }),
+      ...(advisedBy !== undefined && { advisedBy }),
       ...(partial.status !== undefined && { status: partial.status }),
       ...(partial.reportNotes !== undefined && { reportNotes: partial.reportNotes ?? null }),
     })

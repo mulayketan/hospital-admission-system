@@ -128,7 +128,7 @@ export interface SelectedPatient {
 }
 
 export const FREQUENCY_OPTIONS = [
-  'BD', 'TDS', 'OD', 'STAT', 'SOS', 'QID', 'HS', '1-0-1', '2-2-2', 'Other',
+  'BD', 'TD', 'TDS', 'OD', 'STAT', 'SOS', 'QD', 'QID', 'HS', '1-0-1', '2-2-2', 'Other',
 ] as const
 
 export const ROUTE_OPTIONS = [

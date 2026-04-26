@@ -2,7 +2,7 @@ import { ZodError } from 'zod'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { PatientAdviceModel } from '@/lib/sheets-models'
+import { PatientAdviceModel, PatientModel } from '@/lib/sheets-models'
 import { patientAdviceSchema, zodErrorBody } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const validated = patientAdviceSchema.parse(body)
+    const patient = await PatientModel.findById(validated.patientId)
+    const advisedBy = validated.advisedBy || patient?.treatingDoctor || ''
 
     const advice = await PatientAdviceModel.create({
       patientId: validated.patientId,
@@ -41,9 +43,9 @@ export async function POST(request: NextRequest) {
       dateTime: validated.dateTime,
       category: validated.category,
       investigationName: validated.investigationName,
-      notes: validated.notes ?? null,
-      advisedBy: validated.advisedBy,
-      status: validated.status,
+      notes: null,
+      advisedBy,
+      status: validated.status ?? 'Pending',
       reportNotes: validated.reportNotes ?? null,
     })
 

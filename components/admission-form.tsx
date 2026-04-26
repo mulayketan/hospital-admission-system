@@ -50,6 +50,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
   const [isLoadingCharges, setIsLoadingCharges] = useState(true)
   const [tpaList, setTpaList] = useState<Array<{id: string, name: string}>>([])
   const [insuranceCompanies, setInsuranceCompanies] = useState<Array<{id: string, name: string}>>([])
+  const [doctorOptions, setDoctorOptions] = useState<Array<{id: string, name: string}>>([])
   const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true)
   
   const t = translations[language]
@@ -125,7 +126,7 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
       try {
         const [tpaResponse, insuranceResponse] = await Promise.all([
           fetch('/api/tpa'),
-          fetch('/api/insurance-companies')
+          fetch('/api/insurance-companies'),
         ])
 
         if (tpaResponse.ok) {
@@ -136,6 +137,22 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
         if (insuranceResponse.ok) {
           const insuranceData = await insuranceResponse.json()
           setInsuranceCompanies(insuranceData.insuranceCompanies || [])
+        }
+
+        try {
+          const usersResponse = await fetch('/api/users')
+          if (usersResponse.ok) {
+            const usersData = await usersResponse.json()
+            const doctors = Array.isArray(usersData)
+              ? usersData
+                  .filter((u: { id?: string; name?: string }) => Boolean(u?.name))
+                  .map((u: { id: string; name: string }) => ({ id: u.id, name: u.name }))
+              : []
+            setDoctorOptions(doctors)
+          }
+        } catch {
+          // Keep treating doctor field usable even if doctor list fetch fails.
+          setDoctorOptions([])
         }
       } catch (error) {
         console.error('Error fetching dropdown data:', error)
@@ -631,10 +648,27 @@ export const AdmissionForm = ({ language, onSubmit, initialData, onSearch }: Adm
 
           <div>
             <Label htmlFor="treatingDoctor">{t.treatingDoctor}</Label>
-            <Input
-              id="treatingDoctor"
-              {...register('treatingDoctor')}
-            />
+            <Select
+              value={watch('treatingDoctor') || ''}
+              onValueChange={(value) => setValue('treatingDoctor', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select treating doctor" />
+              </SelectTrigger>
+              <SelectContent>
+                {isLoadingDropdowns ? (
+                  <SelectItem value="loading-doctors" disabled>Loading doctors...</SelectItem>
+                ) : doctorOptions.length > 0 ? (
+                  doctorOptions.map((doctor) => (
+                    <SelectItem key={doctor.id} value={doctor.name}>
+                      {doctor.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-doctors" disabled>No doctors found</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

@@ -18,7 +18,6 @@ const formSchema = z.object({
   doctorNotes: z.string().min(1, 'Notes are required'),
   treatment: z.string().optional(),
   staffName: z.string().min(1, 'Staff name required'),
-  doctorSignature: z.string().optional(),
 })
 type FormValues = z.infer<typeof formSchema>
 
@@ -52,7 +51,6 @@ export const ClinicalNoteForm = ({
       doctorNotes: '',
       treatment: '',
       staffName: '',
-      doctorSignature: '',
     },
   })
 
@@ -66,7 +64,6 @@ export const ClinicalNoteForm = ({
         doctorNotes: editingEntry.doctorNotes,
         treatment: editingEntry.treatment ?? '',
         staffName: editingEntry.staffName,
-        doctorSignature: editingEntry.doctorSignature ?? '',
       })
     }
   }, [editingEntry, reset])
@@ -80,7 +77,7 @@ export const ClinicalNoteForm = ({
       doctorNotes: values.doctorNotes,
       treatment: values.treatment || undefined,
       staffName: values.staffName,
-      doctorSignature: values.doctorSignature || undefined,
+      doctorSignature: patient.treatingDoctor || undefined,
     }
 
     const url = editingEntry
@@ -162,7 +159,7 @@ export const ClinicalNoteForm = ({
         </div>
         <div>
           <Label>{t.signingDoctor}</Label>
-          <Input {...register('doctorSignature')} placeholder="Dr. name (optional)" />
+          <Input value={patient.treatingDoctor || ''} disabled placeholder="Treating doctor" />
         </div>
       </div>
 

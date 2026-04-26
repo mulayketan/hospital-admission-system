@@ -35,8 +35,26 @@ export const initSheetsClient = () => {
   if (sheetsClient) return sheetsClient
 
   try {
-    // Parse the service account key from environment variable
-    const serviceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}')
+    // Parse the service account key from environment variable.
+    // Some local env files may contain a private_key with literal newlines,
+    // which breaks JSON.parse with "Bad control character".
+    const rawServiceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}'
+    const parseServiceAccountKey = (raw: string) => {
+      try {
+        return JSON.parse(raw)
+      } catch {
+        // Normalize only private_key value by escaping literal newlines.
+        const normalized = raw.replace(
+          /"private_key"\s*:\s*"([\s\S]*?)"(\s*,\s*"client_email")/,
+          (_match, privateKey, suffix) =>
+            `"private_key":"${String(privateKey)
+              .replace(/\r\n/g, '\n')
+              .replace(/\n/g, '\\n')}"${suffix}`
+        )
+        return JSON.parse(normalized)
+      }
+    }
+    const serviceAccountKey = parseServiceAccountKey(rawServiceAccountKey)
     
     const auth = new JWT({
       email: serviceAccountKey.client_email,

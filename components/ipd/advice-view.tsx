@@ -93,7 +93,6 @@ export const AdviceView = ({ patient, language }: AdviceViewProps) => {
           language={language}
           onEdit={(a) => { setEditingAdvice(a); setShowForm(true) }}
           onDelete={handleDelete}
-          onStatusChanged={fetchAdvice}
         />
       )}
     </div>

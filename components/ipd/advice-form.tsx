@@ -20,13 +20,10 @@ import { translations } from '@/lib/translations'
 import { buildISTDateTime, todayDate, currentTime } from '@/lib/utils'
 import {
   INVESTIGATION_CATEGORIES,
-  ADVICE_STATUS_OPTIONS,
   type PatientAdvice,
   type SelectedPatient,
   type InvestigationCategory,
 } from '@/lib/ipd-types'
-
-type AdviceStatus = 'Pending' | 'Done' | 'Report Received'
 
 const formSchema = z.object({
   date: z.string().min(1, 'Date required'),
@@ -34,8 +31,6 @@ const formSchema = z.object({
   category: z.enum([
     'Blood Test', 'Urine Test', 'X-Ray', 'CT Scan', 'MRI', 'USG', 'ECG', 'Echo', 'Other',
   ]),
-  notes: z.string().optional(),
-  advisedBy: z.string().min(1, 'Advised by is required'),
   reportNotes: z.string().optional(),
 })
 type FormValues = z.infer<typeof formSchema>
@@ -59,7 +54,6 @@ export const AdviceForm = ({
 
   const [selectedInvestigations, setSelectedInvestigations] = useState<string[]>([])
   const [investigationError, setInvestigationError] = useState<string>('')
-  const [statusValue, setStatusValue] = useState<AdviceStatus>('Pending')
   const [submitError, setSubmitError] = useState<string>('')
 
   const {
@@ -68,15 +62,13 @@ export const AdviceForm = ({
     setValue,
     watch,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       date: todayDate(),
       time: currentTime(),
       category: 'Blood Test',
-      notes: '',
-      advisedBy: '',
       reportNotes: '',
     },
   })
@@ -91,11 +83,8 @@ export const AdviceForm = ({
         date: d.toISOString().split('T')[0],
         time: d.toTimeString().slice(0, 5),
         category: editingAdvice.category,
-        notes: editingAdvice.notes ?? '',
-        advisedBy: editingAdvice.advisedBy,
         reportNotes: editingAdvice.reportNotes ?? '',
       })
-      setStatusValue(editingAdvice.status as AdviceStatus)
       setSelectedInvestigations(
         editingAdvice.investigationName
           .split(',')
@@ -118,9 +107,7 @@ export const AdviceForm = ({
       dateTime: buildISTDateTime(values.date, values.time),
       category: values.category,
       investigationName: selectedInvestigations.join(', '),
-      notes: values.notes || undefined,
-      advisedBy: values.advisedBy,
-      status: statusValue,
+      advisedBy: patient.treatingDoctor || undefined,
       reportNotes: values.reportNotes || undefined,
     }
 
@@ -209,43 +196,18 @@ export const AdviceForm = ({
         </div>
       </div>
 
-      <div>
-        <Label>Notes (optional)</Label>
-        <Input {...register('notes')} placeholder="e.g. fasting, with contrast" />
-      </div>
-
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>{t.advisedBy}</Label>
-          <Input
-            {...register('advisedBy')}
-            placeholder="Dr. name"
-            className={errors.advisedBy ? 'border-red-500' : ''}
-          />
-          {errors.advisedBy && (
-            <p className="text-red-500 text-xs mt-1">{errors.advisedBy.message}</p>
-          )}
+          <Input value={patient.treatingDoctor || ''} disabled placeholder="Treating doctor" />
         </div>
-        <div>
-          <Label>{t.status}</Label>
-          <select
-            value={statusValue}
-            onChange={(e) => setStatusValue(e.target.value as AdviceStatus)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          >
-            {ADVICE_STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
+        <div />
       </div>
 
-      {(statusValue === 'Done' || statusValue === 'Report Received') && (
-        <div>
-          <Label>{t.reportNotes}</Label>
-          <Input {...register('reportNotes')} placeholder="Brief result summary" />
-        </div>
-      )}
+      <div>
+        <Label>{t.reportNotes}</Label>
+        <Input {...register('reportNotes')} placeholder="Brief result summary" />
+      </div>
 
       {submitError && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">

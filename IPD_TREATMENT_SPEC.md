@@ -23,7 +23,7 @@ Forms analysed for patient **Bharatkumar Suvald Jangid** (UHID: Z-21667, IPD: 18
 
 ### 2.1 Progress Report — Three Sections
 
-**Section A — Diagnosis / Chief Complaint** (free text above table):
+**Section A — Diagnosis** (free text above table):
 ```
 Viral Fever c severe Joint pain (IPD) c severe myalgia
 ```
@@ -425,7 +425,7 @@ GET    /api/patients/[id]/ipd-pdf?form=drug-orders
 ### 7.2 Progress Report Tab
 
 ```
-DIAGNOSIS / CHIEF COMPLAINT
+DIAGNOSIS
 ┌──────────────────────────────────────────────────────────────┐
 │  Viral Fever c severe Joint pain (IPD) c severe myalgia      │
 │  [textarea — editable]                             [Save]    │

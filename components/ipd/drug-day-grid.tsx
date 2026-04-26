@@ -20,12 +20,10 @@ import { useSession } from 'next-auth/react'
 
 interface DrugDayGridProps {
   orders: DrugOrder[]
+  treatingDoctor: string | null
   language: 'en' | 'mr'
   onDelete: (id: string) => void
   onRefresh: () => void
-  medOfficerSignature: string
-  onSignatureChange: (sig: string) => void
-  onSignatureSave: () => void
 }
 
 interface CellPopup {
@@ -61,12 +59,10 @@ function formatDayTimes(value: string): React.ReactNode {
 
 export const DrugDayGrid = ({
   orders,
+  treatingDoctor,
   language,
   onDelete,
   onRefresh,
-  medOfficerSignature,
-  onSignatureChange,
-  onSignatureSave,
 }: DrugDayGridProps) => {
   const t = translations[language]
   const { data: session } = useSession()
@@ -252,19 +248,16 @@ export const DrugDayGrid = ({
         </table>
       </div>
 
-      {/* Medical Officer Signature */}
+      {/* Treating doctor (single doctor source) */}
       <div className="flex items-end gap-3 bg-gray-50 rounded-lg p-3 border border-gray-200">
         <div className="flex-1">
-          <Label className="text-sm">{t.medOfficerSignature}</Label>
+          <Label className="text-sm">{t.treatingDoctor}</Label>
           <Input
-            value={medOfficerSignature}
-            onChange={(e) => onSignatureChange(e.target.value)}
-            placeholder="Dr. name, qualification, reg no"
+            value={treatingDoctor || ''}
+            disabled
+            placeholder="Treating doctor"
           />
         </div>
-        <Button variant="outline" size="sm" onClick={onSignatureSave}>
-          {t.save}
-        </Button>
       </div>
 
       {editOrder && (

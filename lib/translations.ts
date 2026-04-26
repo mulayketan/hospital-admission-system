@@ -114,7 +114,7 @@ export const translations = {
     exportPdf: "Export PDF",
 
     // Progress Report
-    diagnosis: "Diagnosis / Chief Complaint",
+    diagnosis: "Diagnosis",
     clinicalNotes: "Clinical Notes",
     addEntry: "Add Entry",
     addClinicalNote: "Add Clinical Note",

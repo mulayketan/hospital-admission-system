@@ -56,7 +56,7 @@ export const drugOrderSchema = z.object({
   ipdNo:               z.string().min(1),
   drugName:            z.string().min(1, 'Drug name required'),
   drugAllergy:         z.string().optional(),
-  frequency:           z.enum(['BD', 'TDS', 'OD', 'STAT', 'SOS', 'QID', 'HS', '1-0-1', '2-2-2', 'Other']),
+  frequency:           z.enum(['BD', 'TD', 'TDS', 'OD', 'STAT', 'SOS', 'QD', 'QID', 'HS', '1-0-1', '2-2-2', 'Other']),
   route:               z.enum(['IV', 'INJ (IM)', 'Oral (TAB)', 'Oral (SYP)', 'Oral (CAP)', 'Topical', 'SL', 'Other']),
   startDate:           z.string().min(1),
   days:                z.record(z.string(), z.string()).optional(),
@@ -71,9 +71,8 @@ export const patientAdviceSchema = z.object({
   dateTime:          z.string().min(1),
   category:          z.enum(['Blood Test', 'Urine Test', 'X-Ray', 'CT Scan', 'MRI', 'USG', 'ECG', 'Echo', 'Other']),
   investigationName: z.string().min(1, 'Investigation name required'),
-  notes:             z.string().optional(),
-  advisedBy:         z.string().min(1),
-  status:            z.enum(['Pending', 'Done', 'Report Received']).default('Pending'),
+  advisedBy:         z.string().optional(),
+  status:            z.enum(['Pending', 'Done', 'Report Received']).optional().default('Pending'),
   reportNotes:       z.string().optional(),
 })
 

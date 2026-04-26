@@ -22,7 +22,6 @@ export const DrugOrderView = ({ patient, language }: DrugOrderViewProps) => {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [drugAllergy, setDrugAllergy] = useState('')
-  const [medOfficerSignature, setMedOfficerSignature] = useState('')
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -32,10 +31,9 @@ export const DrugOrderView = ({ patient, language }: DrugOrderViewProps) => {
       const data = await res.json()
       const list: DrugOrder[] = Array.isArray(data) ? data : []
       setOrders(list)
-      // Populate allergy/signature from first row if available
+      // Populate allergy from first row if available
       if (list.length > 0) {
         setDrugAllergy(list[0].drugAllergy ?? '')
-        setMedOfficerSignature(list[0].medOfficerSignature ?? '')
       }
     } catch {
       toast.error('Error loading drug orders')
@@ -61,21 +59,6 @@ export const DrugOrderView = ({ patient, language }: DrugOrderViewProps) => {
     toast.success(t.entrySaved)
     setShowForm(false)
     fetchOrders()
-  }
-
-  const handleSignatureSave = async () => {
-    if (orders.length === 0) return
-    try {
-      // Update first order's signature (representative)
-      await fetch(`/api/ipd/drug-orders/${orders[0].id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ medOfficerSignature }),
-      })
-      toast.success(t.entrySaved)
-    } catch {
-      toast.error(t.entryError)
-    }
   }
 
   return (
@@ -125,12 +108,10 @@ export const DrugOrderView = ({ patient, language }: DrugOrderViewProps) => {
       ) : (
         <DrugDayGrid
           orders={orders}
+          treatingDoctor={patient.treatingDoctor}
           language={language}
           onDelete={handleDelete}
           onRefresh={fetchOrders}
-          medOfficerSignature={medOfficerSignature}
-          onSignatureChange={setMedOfficerSignature}
-          onSignatureSave={handleSignatureSave}
         />
       )}
     </div>

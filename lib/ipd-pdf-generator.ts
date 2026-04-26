@@ -154,6 +154,22 @@ const formatDrugStartDatePdf = (s: string | null | undefined): string => {
   return esc(`${day}/${month}/${year}`)
 }
 
+const normalizeFrequency = (value: string | null | undefined): string => {
+  const v = (value || '').trim().toUpperCase()
+  if (v === 'TD') return 'TDS'
+  if (v === 'QD') return 'QID'
+  return v
+}
+
+const frequencyRowCount = (value: string | null | undefined): number => {
+  const f = normalizeFrequency(value)
+  if (f === 'BD') return 2
+  if (f === 'TDS') return 3
+  if (f === 'QID') return 4
+  if (f === 'STAT' || f === 'OD' || f === 'HS') return 1
+  return 1
+}
+
 /** Format a Date as "D/M" (no year, for day-column headers). */
 const fmtDayHeader = (d: Date): string => `${d.getDate()}/${d.getMonth() + 1}`
 
@@ -198,7 +214,7 @@ const BASE_CSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'Noto Sans', Arial, sans-serif;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.3;
     color: #000;
     -webkit-font-smoothing: antialiased;
@@ -209,7 +225,7 @@ const BASE_CSS = `
     display: inline-block;
     background: #000; color: #fff;
     padding: 5px 12px; border-radius: 15px;
-    font-weight: bold; font-size: 12px;
+    font-weight: bold; font-size: 14px;
   }
   .header {
     display: flex; justify-content: space-between; align-items: flex-start;
@@ -218,22 +234,22 @@ const BASE_CSS = `
   .logo-img { height: 46px; width: auto; margin-right: 8px; }
   .uhid-box {
     display: inline-block; border: 1px solid #000;
-    padding: 3px 8px; font-weight: bold; font-size: 11px;
+    padding: 3px 8px; font-weight: bold; font-size: 12px;
     margin-top: 4px;
   }
   .patient-strip {
     border: 1px solid #000; padding: 5px 8px;
-    margin: 5px 0; font-size: 11px;
+    margin: 5px 0; font-size: 12px;
   }
   .ps-row { display: flex; gap: 12px; flex-wrap: wrap; }
   .ps-item { white-space: nowrap; }
   .ps-label { font-weight: bold; }
   .ps-value { border-bottom: 1px solid #aaa; min-width: 60px; display: inline-block; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #000; padding: 4px 5px; vertical-align: top; font-size: 10.5px; }
+  th, td { border: 1px solid #000; padding: 4px 5px; vertical-align: top; font-size: 11.5px; }
   th { background: #e8e8e8; font-weight: bold; text-align: center; }
   .cell-wrap { white-space: pre-wrap; word-break: break-word; }
-  .footer { margin-top: 12px; font-size: 10px; }
+  .footer { margin-top: 12px; font-size: 11px; }
   .footer-note {
     text-align: center; font-style: italic;
     border-top: 1px solid #000; padding-top: 5px; margin-bottom: 10px;
@@ -281,6 +297,7 @@ ${body}
 // ---------------------------------------------------------------------------
 
 const waitForRender = async (page: import('puppeteer-core').Page): Promise<void> => {
+  if (typeof page.evaluate !== 'function') return
   await page.evaluate(() =>
     new Promise<void>(resolve => {
       // Wait for all images (including base64) to decode
@@ -309,7 +326,9 @@ const renderPDF = async (
   const browser = await getBrowser()
   const page = await browser.newPage()
   try {
-    await page.setViewport({ width: orientation === 'landscape' ? 1600 : 1200, height: 1100 })
+    if (typeof page.setViewport === 'function') {
+      await page.setViewport({ width: orientation === 'landscape' ? 1600 : 1200, height: 1100 })
+    }
     await page.setContent(html, { waitUntil: 'domcontentloaded' })
     await waitForRender(page)
     const pdfBuffer = await page.pdf({
@@ -331,16 +350,19 @@ const renderPDF = async (
 export const generateProgressReportPDF = async ({
   patient,
   entries,
+  progressEntries,
   adviceEntries,
 }: {
   patient: IPDPatient
-  entries: ProgressReportEntry[]
+  entries?: ProgressReportEntry[]
+  progressEntries?: ProgressReportEntry[]
   adviceEntries: PatientAdvice[]
 }): Promise<Buffer> => {
-  const admissionEntry = entries.find(e => e.isAdmissionNote)
+  const effectiveEntries = entries ?? progressEntries ?? []
+  const admissionEntry = effectiveEntries.find(e => e.isAdmissionNote)
   const diagnosis = admissionEntry?.diagnosis || ''
 
-  const rowsHtml = entries
+  const rowsHtml = effectiveEntries
     .map(
       e => `
       <tr>
@@ -364,8 +386,7 @@ export const generateProgressReportPDF = async ({
               <th style="width:16%">Date &amp; Time</th>
               <th style="width:18%">Category</th>
               <th style="width:28%">Investigation</th>
-              <th style="width:22%">Notes</th>
-              <th style="width:16%">Status</th>
+              <th style="width:38%">Report Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -376,8 +397,7 @@ export const generateProgressReportPDF = async ({
                 <td style="text-align:center">${formatIPDDate(a.dateTime)}</td>
                 <td>${esc(a.category)}</td>
                 <td>${esc(a.investigationName)}</td>
-                <td class="cell-wrap">${a.reportNotes ? `<strong>${esc(a.reportNotes)}</strong>` + (a.notes ? `<br><span style="color:#555;font-size:9.5px;">${esc(a.notes)}</span>` : '') : esc(a.notes || '—')}</td>
-                <td style="text-align:center">${esc(a.status)}</td>
+                <td class="cell-wrap">${esc(a.reportNotes || '—')}</td>
               </tr>`
               )
               .join('')}
@@ -414,7 +434,7 @@ export const generateProgressReportPDF = async ({
     </div>
 
     <div style="background:#f2f2f2;border:1px solid #000;padding:6px;margin:5px 0;">
-      <div style="font-weight:bold;margin-bottom:4px;">DIAGNOSIS / CHIEF COMPLAINT</div>
+      <div style="font-weight:bold;margin-bottom:4px;">DIAGNOSIS</div>
       <div class="cell-wrap" style="min-height:32px;">${esc(diagnosis)}</div>
     </div>
 
@@ -436,9 +456,6 @@ export const generateProgressReportPDF = async ({
     <div class="footer">
       <div class="footer-note">Every Entry to be Named, Signed, Dated &amp; Timed</div>
       <div class="footer-sigs" style="margin-top:10px;">
-        <div style="font-size:9px;color:#555;align-self:flex-end;">
-          Zawar Hospital, Solapur Road, Barshi, Dist. Solapur.
-        </div>
         <div class="sig-block">
           <div class="sig-line"></div>
           <div style="font-weight:bold;">${esc(patient.treatingDoctor || '')}</div>
@@ -458,11 +475,14 @@ export const generateProgressReportPDF = async ({
 export const generateNursingNotesPDF = async ({
   patient,
   entries,
+  nursingEntries,
 }: {
   patient: IPDPatient
-  entries: NursingNote[]
+  entries?: NursingNote[]
+  nursingEntries?: NursingNote[]
 }): Promise<Buffer> => {
-  const rowsHtml = entries
+  const effectiveEntries = entries ?? nursingEntries ?? []
+  const rowsHtml = effectiveEntries
     .map(e => {
       const bg = e.isHandover ? 'background:#d0d0d0;' : ''
       const handoverPrefix = e.isHandover ? '<strong>⇄ HANDOVER</strong><br>' : ''
@@ -641,8 +661,8 @@ export const generateDrugOrderPDF = async ({
 }): Promise<Buffer> => {
   if (drugOrders.length === 0) {
     return renderPDF(
-      htmlDoc('portrait', '<div class="container" style="padding:20px;text-align:center;color:#888;">No drug orders found.</div>'),
-      'portrait'
+      htmlDoc('landscape', '<div class="container" style="padding:20px;text-align:center;color:#888;">No drug orders found.</div>'),
+      'landscape'
     )
   }
 
@@ -676,37 +696,35 @@ export const generateDrugOrderPDF = async ({
   const drugAllergy = firstDrug.drugAllergy || ''
   const ward = firstDrug.ward || patient.ward || '—'
   const bedNo = firstDrug.bedNo || patient.bedNo || '—'
-  const medOfficer = firstDrug.medOfficerSignature || ''
-
   // Horizontal patient info bar — sits below the header, above the drug table
   const patientInfoRow = `
-    <div style="display:flex;border:1px solid #000;border-bottom:none;font-size:9px;line-height:1.4;margin-bottom:0;">
+    <div style="display:flex;border:1px solid #000;border-bottom:none;font-size:10px;line-height:1.45;margin-bottom:0;">
       <div style="flex:2;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:8px;color:#555;">Patient Name</div>
+        <div style="font-weight:bold;font-size:9px;color:#555;">Patient Name</div>
         <div>${esc(fullName(patient))}</div>
       </div>
       <div style="flex:1.5;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:8px;color:#555;">Drug Allergy</div>
+        <div style="font-weight:bold;font-size:9px;color:#555;">Drug Allergy</div>
         <div>${esc(drugAllergy)}</div>
       </div>
       <div style="flex:0.5;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:8px;color:#555;">Age</div>
+        <div style="font-weight:bold;font-size:9px;color:#555;">Age</div>
         <div>${patient.age}</div>
       </div>
       <div style="flex:0.5;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:8px;color:#555;">Sex M/F</div>
+        <div style="font-weight:bold;font-size:9px;color:#555;">Sex M/F</div>
         <div>${patient.sex}</div>
       </div>
       <div style="flex:1;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:8px;color:#555;">Ward</div>
+        <div style="font-weight:bold;font-size:9px;color:#555;">Ward</div>
         <div>${esc(wardLabel(ward))}</div>
       </div>
       <div style="flex:1;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:8px;color:#555;">Room/Bed No.</div>
+        <div style="font-weight:bold;font-size:9px;color:#555;">Room/Bed No.</div>
         <div>${esc(bedNo)}</div>
       </div>
       <div style="flex:1;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:8px;color:#555;">IPD No.</div>
+        <div style="font-weight:bold;font-size:9px;color:#555;">IPD No.</div>
         <div>${esc(patient.ipdNo || '—')}</div>
       </div>
     </div>`
@@ -735,23 +753,26 @@ export const generateDrugOrderPDF = async ({
     ].join('')
 
     const bodyRows = drugOrders
-      .map(drug => `
-        <tr>
-          <td class="cell-wrap">${esc(drug.drugName)}</td>
-          <td style="text-align:center">${esc(drug.frequency)}</td>
-          <td style="text-align:center">${esc(drug.route)}</td>
-          <td style="text-align:center;font-size:9px;white-space:nowrap;">${formatDrugStartDatePdf(drug.startDate)}</td>
-          ${Array.from({ length: numCols }, (_, i) => {
-            const val = cellValue(drug, daysFrom + i)
-            return `<td style="text-align:center;vertical-align:top;font-size:9px;">${val}</td>`
-          }).join('')}
-        </tr>`)
+      .flatMap(drug => {
+        const repeatRows = frequencyRowCount(drug.frequency)
+        return Array.from({ length: repeatRows }, (_, rowIdx) => `
+          <tr>
+            <td class="cell-wrap">${rowIdx === 0 ? esc(drug.drugName) : ''}</td>
+            <td style="text-align:center">${rowIdx === 0 ? esc(drug.frequency) : ''}</td>
+            <td style="text-align:center">${rowIdx === 0 ? esc(drug.route) : ''}</td>
+            <td style="text-align:center;font-size:10px;white-space:nowrap;">${rowIdx === 0 ? formatDrugStartDatePdf(drug.startDate) : ''}</td>
+            ${Array.from({ length: numCols }, (_, i) => {
+              const val = cellValue(drug, daysFrom + i)
+              return `<td style="text-align:center;vertical-align:top;font-size:10px;">${val}</td>`
+            }).join('')}
+          </tr>`)
+      })
       .join('')
 
     return `
       ${isPto ? '<div style="font-weight:bold;font-size:10px;margin:4px 0;">PTO</div>' : ''}
       ${patientInfoRow}
-      <table style="table-layout:fixed;width:100%;font-size:9.5px;">
+      <table style="table-layout:fixed;width:100%;font-size:10.5px;">
         <thead><tr>${headerRow}</tr></thead>
         <tbody>${bodyRows}</tbody>
       </table>`
@@ -762,11 +783,11 @@ export const generateDrugOrderPDF = async ({
       <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:center;">
         <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
         <div>
-          <div style="font-weight:bold;font-size:14px;" class="marathi">झंवर हॉस्पिटल</div>
-          <div style="font-size:12px;font-weight:bold;">Zawar Hospital</div>
+          <div style="font-weight:bold;font-size:16px;" class="marathi">झंवर हॉस्पिटल</div>
+          <div style="font-size:14px;font-weight:bold;">Zawar Hospital</div>
         </div>
       </div>
-      <div><span class="badge" style="font-size:14px;">ORDER SHEET</span></div>
+      <div><span class="badge" style="font-size:16px;">ORDER SHEET</span></div>
     </div>`
 
   const orderFooter = `
@@ -774,8 +795,8 @@ export const generateDrugOrderPDF = async ({
       <div class="footer-sigs">
         <div class="sig-block">
           <div class="sig-line"></div>
-          <div style="font-weight:bold;">${esc(medOfficer || patient.treatingDoctor || '')}</div>
-          <div>Medical Officer Signature</div>
+          <div style="font-weight:bold;">${esc(patient.treatingDoctor || '')}</div>
+          <div>Treating Doctor</div>
         </div>
         <div></div>
       </div>
@@ -798,7 +819,7 @@ export const generateDrugOrderPDF = async ({
     ${orderFooter}
   </div>`
 
-  return renderPDF(htmlDoc('portrait', body, `Order Sheet — ${fullName(patient)}`), 'portrait')
+  return renderPDF(htmlDoc('landscape', body, `Order Sheet — ${fullName(patient)}`), 'landscape')
 }
 
 // ---------------------------------------------------------------------------
@@ -853,8 +874,7 @@ export const generateCombinedIPDPDF = async ({
               <th style="width:16%">Date &amp; Time</th>
               <th style="width:18%">Category</th>
               <th style="width:28%">Investigation</th>
-              <th style="width:22%">Notes</th>
-              <th style="width:16%">Status</th>
+              <th style="width:38%">Report Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -865,8 +885,7 @@ export const generateCombinedIPDPDF = async ({
                 <td style="text-align:center">${formatIPDDate(a.dateTime)}</td>
                 <td>${esc(a.category)}</td>
                 <td>${esc(a.investigationName)}</td>
-                <td class="cell-wrap">${a.reportNotes ? `<strong>${esc(a.reportNotes)}</strong>` + (a.notes ? `<br><span style="color:#555;font-size:9.5px;">${esc(a.notes)}</span>` : '') : esc(a.notes || '—')}</td>
-                <td style="text-align:center">${esc(a.status)}</td>
+                <td class="cell-wrap">${esc(a.reportNotes || '—')}</td>
               </tr>`
               )
               .join('')}
@@ -904,7 +923,7 @@ export const generateCombinedIPDPDF = async ({
         </div>
       </div>
       <div style="background:#f2f2f2;border:1px solid #000;padding:6px;margin:5px 0;">
-        <div style="font-weight:bold;margin-bottom:4px;">DIAGNOSIS / CHIEF COMPLAINT</div>
+        <div style="font-weight:bold;margin-bottom:4px;">DIAGNOSIS</div>
         <div class="cell-wrap" style="min-height:28px;">${esc(diagnosis)}</div>
       </div>
       <table><thead><tr><th style="width:15%">Date &amp; Time</th><th style="width:45%">Doctor's Notes</th><th style="width:40%">Treatment</th></tr></thead>
@@ -912,10 +931,6 @@ export const generateCombinedIPDPDF = async ({
       ${adviceBlock}
       <div class="footer">
         <div class="footer-note">Every Entry to be Named, Signed, Dated &amp; Timed</div>
-        <div class="footer-sigs" style="margin-top:10px;">
-          <div style="font-size:9px;color:#555;align-self:flex-end;">Zawar Hospital, Solapur Road, Barshi, Dist. Solapur.</div>
-          ${sigBlock('Treating Doctor', patient.treatingDoctor)}
-        </div>
       </div>
     </div>`
 
@@ -1051,7 +1066,7 @@ async function buildDrugOrderSection(
   drugOrders: DrugOrder[]
 ): Promise<string> {
   if (drugOrders.length === 0) {
-    return `<div class="container" style="page:portrait-page;padding:20px;text-align:center;color:#888;">No drug orders.</div>`
+    return `<div class="container" style="page:landscape-page;padding:20px;text-align:center;color:#888;">No drug orders.</div>`
   }
 
   const globalStart = drugOrders.reduce<Date>((earliest, d) => {
@@ -1084,36 +1099,34 @@ async function buildDrugOrderSection(
   const drugAllergy = firstDrug.drugAllergy || ''
   const ward = firstDrug.ward || patient.ward || '—'
   const bedNo = firstDrug.bedNo || patient.bedNo || '—'
-  const medOfficer = firstDrug.medOfficerSignature || patient.treatingDoctor || ''
-
   const patientInfoRow = `
-    <div style="display:flex;border:1px solid #000;border-bottom:none;font-size:8.5px;line-height:1.4;">
+    <div style="display:flex;border:1px solid #000;border-bottom:none;font-size:10px;line-height:1.45;">
       <div style="flex:2;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:7.5px;color:#555;">Patient Name</div>
+        <div style="font-weight:bold;font-size:8.5px;color:#555;">Patient Name</div>
         <div>${esc(fullName(patient))}</div>
       </div>
       <div style="flex:1.5;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:7.5px;color:#555;">Drug Allergy</div>
+        <div style="font-weight:bold;font-size:8.5px;color:#555;">Drug Allergy</div>
         <div>${esc(drugAllergy)}</div>
       </div>
       <div style="flex:0.5;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:7.5px;color:#555;">Age</div>
+        <div style="font-weight:bold;font-size:8.5px;color:#555;">Age</div>
         <div>${patient.age}</div>
       </div>
       <div style="flex:0.5;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:7.5px;color:#555;">Sex M/F</div>
+        <div style="font-weight:bold;font-size:8.5px;color:#555;">Sex M/F</div>
         <div>${patient.sex}</div>
       </div>
       <div style="flex:1;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:7.5px;color:#555;">Ward</div>
+        <div style="font-weight:bold;font-size:8.5px;color:#555;">Ward</div>
         <div>${esc(wardLabel(ward))}</div>
       </div>
       <div style="flex:1;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:7.5px;color:#555;">Room/Bed No.</div>
+        <div style="font-weight:bold;font-size:8.5px;color:#555;">Room/Bed No.</div>
         <div>${esc(bedNo)}</div>
       </div>
       <div style="flex:1;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:7.5px;color:#555;">IPD No.</div>
+        <div style="font-weight:bold;font-size:8.5px;color:#555;">IPD No.</div>
         <div>${esc(patient.ipdNo || '—')}</div>
       </div>
     </div>`
@@ -1139,22 +1152,25 @@ async function buildDrugOrderSection(
       ),
     ].join('')
     const rows = drugOrders
-      .map(drug => `
-        <tr>
-          <td class="cell-wrap">${esc(drug.drugName)}</td>
-          <td style="text-align:center">${esc(drug.frequency)}</td>
-          <td style="text-align:center;font-size:8.5px;">${esc(drug.route)}</td>
-          <td style="text-align:center;font-size:8px;white-space:nowrap">${formatDrugStartDatePdf(drug.startDate)}</td>
-          ${Array.from({ length: numCols }, (_, i) => {
-            const v = cellValue(drug, from + i)
-            return `<td style="text-align:center;vertical-align:top;font-size:8px;">${v}</td>`
-          }).join('')}
-        </tr>`)
+      .flatMap(drug => {
+        const repeatRows = frequencyRowCount(drug.frequency)
+        return Array.from({ length: repeatRows }, (_, rowIdx) => `
+          <tr>
+            <td class="cell-wrap">${rowIdx === 0 ? esc(drug.drugName) : ''}</td>
+            <td style="text-align:center">${rowIdx === 0 ? esc(drug.frequency) : ''}</td>
+            <td style="text-align:center;font-size:10px;">${rowIdx === 0 ? esc(drug.route) : ''}</td>
+            <td style="text-align:center;font-size:9.5px;white-space:nowrap">${rowIdx === 0 ? formatDrugStartDatePdf(drug.startDate) : ''}</td>
+            ${Array.from({ length: numCols }, (_, i) => {
+              const v = cellValue(drug, from + i)
+              return `<td style="text-align:center;vertical-align:top;font-size:9.5px;">${v}</td>`
+            }).join('')}
+          </tr>`)
+      })
       .join('')
     return `
       ${isPto ? '<div style="font-weight:bold;font-size:9.5px;margin-bottom:3px;">PTO</div>' : ''}
       ${patientInfoRow}
-      <table style="table-layout:fixed;width:100%;font-size:9px;">
+      <table style="table-layout:fixed;width:100%;font-size:10px;">
         <thead><tr>${headerRow}</tr></thead>
         <tbody>${rows}</tbody>
       </table>`
@@ -1165,18 +1181,18 @@ async function buildDrugOrderSection(
       <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:center;">
         <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
         <div>
-          <div class="marathi" style="font-weight:bold;font-size:13px;">झंवर हॉस्पिटल</div>
-          <div style="font-size:11px;font-weight:bold;">Zawar Hospital</div>
+          <div class="marathi" style="font-weight:bold;font-size:15px;">झंवर हॉस्पिटल</div>
+          <div style="font-size:13px;font-weight:bold;">Zawar Hospital</div>
         </div>
       </div>
-      <span class="badge" style="font-size:13px;">ORDER SHEET</span>
+      <span class="badge" style="font-size:15px;">ORDER SHEET</span>
     </div>`
 
   const sig = `
     <div class="footer"><div class="footer-sigs" style="margin-top:10px;">
       <div class="sig-block"><div class="sig-line"></div>
-        <div style="font-weight:bold;">${esc(medOfficer)}</div>
-        <div>Medical Officer Signature</div>
+        <div style="font-weight:bold;">${esc(patient.treatingDoctor || '')}</div>
+        <div>Treating Doctor</div>
       </div>
       <div></div>
     </div></div>`
@@ -1191,7 +1207,7 @@ async function buildDrugOrderSection(
 
   return pages
     .map((grid, i) => `
-      <div class="container" style="page:portrait-page;">
+      <div class="container" style="page:landscape-page;">
         ${orderHeader}
         ${grid}
         ${i === pages.length - 1 ? sig : ''}

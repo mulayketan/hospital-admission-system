@@ -22,7 +22,7 @@ import type { DrugOrder, SelectedPatient, Medicine } from '@/lib/ipd-types'
 
 const formSchema = z.object({
   drugName: z.string().min(1, 'Drug name required'),
-  frequency: z.enum(['BD', 'TDS', 'OD', 'STAT', 'SOS', 'QID', 'HS', '1-0-1', '2-2-2', 'Other']),
+  frequency: z.enum(['BD', 'TD', 'TDS', 'OD', 'STAT', 'SOS', 'QD', 'QID', 'HS', '1-0-1', '2-2-2', 'Other']),
   route: z.enum(['IV', 'INJ (IM)', 'Oral (TAB)', 'Oral (SYP)', 'Oral (CAP)', 'Topical', 'SL', 'Other']),
   startDate: z.string().min(1, 'Start date required'),
   drugAllergy: z.string().optional(),
@@ -77,6 +77,7 @@ export const DrugOrderForm = ({
       frequency: values.frequency,
       route: values.route,
       startDate: values.startDate,
+      medOfficerSignature: patient.treatingDoctor || undefined,
       ward: patient.ward,
       bedNo: patient.bedNo ?? undefined,
     }
