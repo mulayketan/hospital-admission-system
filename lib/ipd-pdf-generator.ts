@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { getBrowser } from './browser'
 import {
   DRUG_ORDER_DATE_COLUMNS_PER_PAGE,
@@ -211,15 +212,45 @@ const wardLabel = (code: string): string => WARD_DISPLAY_NAMES[code] ?? code
 // ---------------------------------------------------------------------------
 
 /**
+ * Resolve the project root that contains `public/` (fonts, images).
+ * Vercel + Next bundle server code into `.next/server/chunks/…` where
+ * `process.cwd()` is not always a directory with `public/`; walk upward from
+ * this file and from cwd until we see `public/fonts/`.
+ */
+const findProjectRootWithPublic = (): string | null => {
+  const hasPublicFonts = (root: string) =>
+    existsSync(join(root, 'public', 'fonts', 'NotoSansDevanagari-Regular.ttf')) ||
+    existsSync(join(root, 'public', 'fonts', 'NotoSansDevanagari-Regular.woff2'))
+
+  const tryWalk = (start: string | null | undefined, fromFile: boolean): string | null => {
+    if (!start) return null
+    let d = fromFile ? dirname(start) : start
+    for (let i = 0; i < 12; i++) {
+      if (hasPublicFonts(d)) return d
+      const parent = join(d, '..')
+      if (parent === d) break
+      d = parent
+    }
+    return null
+  }
+
+  return tryWalk(process.cwd(), false) || tryWalk(fileURLToPath(import.meta.url), true)
+}
+
+/**
  * Load Noto Devanagari from disk (base64) so PDF render never depends on the network.
- * Tries several paths (Vercel standalone, repo root) and .ttf then .woff2.
+ * Tries project root (see findProjectRootWithPublic) and .ttf then .woff2.
  */
 const loadDevanagariFontFace = (): string => {
   const files: { name: string; format: 'truetype' | 'woff2' }[] = [
     { name: 'NotoSansDevanagari-Regular.ttf', format: 'truetype' },
     { name: 'NotoSansDevanagari-Regular.woff2', format: 'woff2' },
   ]
-  const roots = [process.cwd(), join(process.cwd(), '..'), join(process.cwd(), '../..')]
+  const extraRoots = [process.cwd(), join(process.cwd(), '..'), join(process.cwd(), '../..')]
+  const fromWalk = findProjectRootWithPublic()
+  const roots = (fromWalk ? [fromWalk, ...extraRoots] : extraRoots).filter(
+    (r, i, a) => a.indexOf(r) === i
+  )
   for (const root of roots) {
     for (const { name, format } of files) {
       const full = join(root, 'public', 'fonts', name)
@@ -380,7 +411,13 @@ const BASE_CSS = `
 // ---------------------------------------------------------------------------
 const loadLogoSrc = (): string => {
   const rel = join('public', 'images', 'zh-logo.svg')
-  const candidates = [join(process.cwd(), rel), join(process.cwd(), '..', rel), join(process.cwd(), '../..', rel)]
+  const fromRoot = findProjectRootWithPublic()
+  const candidates = [
+    fromRoot ? join(fromRoot, rel) : '',
+    join(process.cwd(), rel),
+    join(process.cwd(), '..', rel),
+    join(process.cwd(), '../..', rel),
+  ].filter(Boolean)
   for (const p of candidates) {
     if (!existsSync(p)) continue
     try {
@@ -481,6 +518,8 @@ const renderPDF = async (
       landscape: orientation === 'landscape',
       printBackground: true,
       margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
+      // Aligns with @page in htmlDoc() so Chromium applies the same size (incl. serverless).
+      preferCSSPageSize: true,
     })
     return Buffer.from(pdfBuffer)
   } finally {
@@ -1239,14 +1278,15 @@ export const generateCombinedIPDPDF = async ({
   const page = await browser.newPage()
   try {
     await page.setViewport({ width: 1600, height: 1100 })
-    await page.setContent(combinedHtml, { waitUntil: 'domcontentloaded' })
+    await page.setContent(combinedHtml, { waitUntil: 'load', timeout: 30_000 })
     await waitForRender(page)
     // Do NOT pass `format` or `landscape` here — the combined PDF uses CSS
-    // @page named-pages (portrait-page) for all sections. Passing format:'A4'
-    // would override the CSS @page size directives.
+    // @page named-pages (portrait-page / landscape-page). `preferCSSPageSize`
+    // is required or headless Chromium often ignores @page (order sheet stays portrait).
     const pdfBuffer = await page.pdf({
       printBackground: true,
       margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
+      preferCSSPageSize: true,
     })
     return Buffer.from(pdfBuffer)
   } finally {
