@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import { translations } from '@/lib/translations'
 import { buildISTDateTime, todayDate, currentTime } from '@/lib/utils'
 import type { ProgressReportEntry, SelectedPatient } from '@/lib/ipd-types'
@@ -18,6 +19,7 @@ const formSchema = z.object({
   doctorNotes: z.string().min(1, 'Notes are required'),
   treatment: z.string().optional(),
   staffName: z.string().min(1, 'Staff name required'),
+  doctorSignature: z.string().min(1, 'Signing doctor required'),
 })
 type FormValues = z.infer<typeof formSchema>
 
@@ -51,6 +53,7 @@ export const ClinicalNoteForm = ({
       doctorNotes: '',
       treatment: '',
       staffName: '',
+      doctorSignature: 'Dr. Rahul Zawar',
     },
   })
 
@@ -64,6 +67,7 @@ export const ClinicalNoteForm = ({
         doctorNotes: editingEntry.doctorNotes,
         treatment: editingEntry.treatment ?? '',
         staffName: editingEntry.staffName,
+        doctorSignature: editingEntry.doctorSignature || 'Dr. Rahul Zawar',
       })
     }
   }, [editingEntry, reset])
@@ -72,12 +76,12 @@ export const ClinicalNoteForm = ({
     const dateTime = buildISTDateTime(values.date, values.time)
     const body = {
       patientId: patient.id,
-      ipdNo: patient.ipdNo ?? '',
+      ipdNo: patient.ipdNo && patient.ipdNo.length > 0 ? patient.ipdNo : 'UNKNOWN',
       dateTime,
       doctorNotes: values.doctorNotes,
       treatment: values.treatment || undefined,
       staffName: values.staffName,
-      doctorSignature: patient.treatingDoctor || undefined,
+      doctorSignature: values.doctorSignature,
     }
 
     const url = editingEntry
@@ -158,8 +162,19 @@ export const ClinicalNoteForm = ({
           )}
         </div>
         <div>
-          <Label>{t.signingDoctor}</Label>
-          <Input value={patient.treatingDoctor || ''} disabled placeholder="Treating doctor" />
+          <Label>Signing Doctor</Label>
+          <Select {...register('doctorSignature')} defaultValue="Dr. Rahul Zawar">
+            <SelectTrigger className={errors.doctorSignature ? 'border-red-500' : ''}>
+              <SelectValue placeholder="Select doctor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Dr. Rahul Zawar">Dr. Rahul Zawar</SelectItem>
+              <SelectItem value="Dr. Ajinkya Deshmukh">Dr. Ajinkya Deshmukh</SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.doctorSignature && (
+            <p className="text-red-500 text-xs mt-1">{errors.doctorSignature.message}</p>
+          )}
         </div>
       </div>
 

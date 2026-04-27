@@ -76,7 +76,7 @@ export const NursingNoteForm = ({
     const dateTime = buildISTDateTime(values.date, values.time)
     const body = {
       patientId: patient.id,
-      ipdNo: patient.ipdNo ?? '',
+      ipdNo: patient.ipdNo && patient.ipdNo.length > 0 ? patient.ipdNo : 'UNKNOWN',
       dateTime,
       notes: values.notes,
       treatment: values.treatment || undefined,
