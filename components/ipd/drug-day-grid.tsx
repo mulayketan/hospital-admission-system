@@ -168,39 +168,39 @@ export const DrugDayGrid = ({
         <p className="text-xs text-gray-500 px-2 py-1 bg-gray-50 border-b border-gray-200">
           Day columns align with the order sheet PDF: {DRUG_ORDER_DATE_COLUMNS_PER_PAGE} &quot;Date:&quot; columns per printed page (scroll for more days).
         </p>
-        <table className="text-xs divide-y divide-gray-200" style={{ minWidth: '960px' }}>
+        <table className="w-full min-w-full table-fixed text-xs divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-3 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 z-10 min-w-[220px]">
+              <th className="w-[18%] px-3 py-2 text-left font-medium text-gray-500 sticky left-0 bg-gray-50 z-10">
                 Drug
               </th>
-              <th className="px-3 py-2 text-left font-medium text-gray-500 whitespace-nowrap min-w-[72px]">
+              <th className="w-[6%] px-2 py-2 text-left font-medium text-gray-500 whitespace-nowrap">
                 Freq
               </th>
-              <th className="px-3 py-2 text-left font-medium text-gray-500 whitespace-nowrap min-w-[100px]">
+              <th className="w-[8%] px-2 py-2 text-left font-medium text-gray-500 whitespace-nowrap">
                 Route
               </th>
-              <th className="px-2 py-2 text-left font-medium text-gray-500 whitespace-nowrap">
+              <th className="w-[7%] px-2 py-2 text-left font-medium text-gray-500 whitespace-nowrap">
                 Start
               </th>
               {dayColumns.map((col, idx) => (
                 <th
                   key={col.key}
-                  className={`px-2 py-2 text-center font-medium text-gray-500 whitespace-nowrap min-w-[72px] ${
+                  className={`px-1 py-2 text-center font-medium text-gray-500 whitespace-nowrap ${
                     idx % DRUG_ORDER_DATE_COLUMNS_PER_PAGE === 0 ? 'border-l-2 border-gray-400' : ''
                   }`}
                 >
                   {col.label}
                 </th>
               ))}
-              <th className="px-2 py-2 text-left font-medium text-gray-500">Actions</th>
+              <th className="w-20 min-w-[5.5rem] px-2 py-2 text-center font-medium text-gray-500">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {orders.map((order) => (
               <tr key={order.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2 font-medium text-gray-800 sticky left-0 bg-white z-10 max-w-[280px]">
-                  <span className="line-clamp-3">{order.drugName}</span>
+                <td className="px-3 py-2 font-medium text-gray-800 sticky left-0 bg-white z-10 align-top">
+                  <span className="line-clamp-3 break-words">{order.drugName}</span>
                 </td>
                 <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{order.frequency}</td>
                 <td className="px-3 py-2 text-gray-600">{order.route}</td>
@@ -217,9 +217,9 @@ export const DrugDayGrid = ({
                     {formatDayTimes(order.days?.[col.key] ?? '')}
                   </td>
                 ))}
-                <td className="px-2 py-2">
+                <td className="w-20 min-w-[5.5rem] px-1 py-2 text-center align-top">
                   {canManageOrders && (
-                    <div className="flex items-center gap-0">
+                    <div className="inline-flex items-center justify-center gap-0">
                       <Button
                         type="button"
                         variant="ghost"

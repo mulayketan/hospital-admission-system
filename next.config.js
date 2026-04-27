@@ -3,10 +3,15 @@ const nextConfig = {
   // Optimize for Vercel deployment
   output: 'standalone',
 
-  // Next.js 15.5+: ensure vendored NSS/NSPR .so files are traced into PDF serverless routes.
+  // Next.js 15.5+: ensure vendored NSS/NSPR .so files traced into PDF routes; also ship
+  // public fonts + logo so readFile in ipd-pdf-generator works on Vercel standalone.
   outputFileTracingIncludes: {
-    '/api/patients/[id]/ipd-pdf': ['./lib/serverless-nss/**/*'],
-    '/api/patients/[id]/pdf': ['./lib/serverless-nss/**/*'],
+    '/api/patients/[id]/ipd-pdf': [
+      './lib/serverless-nss/**/*',
+      './public/fonts/**/*',
+      './public/images/zh-logo.svg',
+    ],
+    '/api/patients/[id]/pdf': ['./lib/serverless-nss/**/*', './public/fonts/**/*'],
   },
 
   // NOTE: Do NOT add server secrets (GOOGLE_SERVICE_ACCOUNT_KEY, NEXTAUTH_SECRET,

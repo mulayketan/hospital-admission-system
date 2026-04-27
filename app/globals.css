@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Self-hosted Devanagari — works when Google Fonts is slow or blocked (e.g. strict networks). */
+@font-face {
+  font-family: 'Noto Sans Devanagari';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/NotoSansDevanagari-Regular.woff2') format('woff2');
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

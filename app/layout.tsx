@@ -22,7 +22,12 @@ export default function RootLayout({
         <script src="https://www.google.com/jsapi" async></script>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className={inter.className}>
+      <body
+        className={inter.className}
+        style={{
+          fontFamily: `${inter.style.fontFamily}, "Noto Sans Devanagari", "Noto Sans", system-ui, sans-serif`,
+        }}
+      >
         <AuthProvider>
           <main className="min-h-screen bg-gray-50">
             {children}
