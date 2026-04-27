@@ -29,6 +29,8 @@ interface ClinicalNoteFormProps {
   editingEntry?: ProgressReportEntry | null
   onSaved: () => void
   onCancel: () => void
+  /** Opens Drug Orders tab from parent (IPD panel). */
+  onManageDrugOrders?: () => void
 }
 
 export const ClinicalNoteForm = ({
@@ -37,6 +39,7 @@ export const ClinicalNoteForm = ({
   editingEntry,
   onSaved,
   onCancel,
+  onManageDrugOrders,
 }: ClinicalNoteFormProps) => {
   const t = translations[language]
 
@@ -138,14 +141,30 @@ export const ClinicalNoteForm = ({
       </div>
 
       <div>
-        <Label>{t.treatment}</Label>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+          <div>
+            <Label>{t.treatment}</Label>
+            <p className="text-xs text-gray-500 mt-0.5 max-w-prose">{t.treatmentAdditionalNotes}</p>
+          </div>
+          {onManageDrugOrders && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 self-start"
+              onClick={onManageDrugOrders}
+            >
+              {t.addManageDrugOrders}
+            </Button>
+          )}
+        </div>
         <textarea
           data-gramm="false"
           data-gramm_editor="false"
           {...register('treatment')}
           rows={2}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
-          placeholder="Inj Pan 40mg BD IV, Tab HCQ 300mg 1-0-1..."
+          className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="Other instructions, procedures, or context…"
         />
       </div>
 

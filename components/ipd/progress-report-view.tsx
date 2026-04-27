@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { DiagnosisBlock } from './diagnosis-block'
 import { ClinicalNoteForm } from './clinical-note-form'
 import { ClinicalNoteTable } from './clinical-note-table'
+import { DrugOrdersSummary } from './drug-orders-summary'
 import { translations } from '@/lib/translations'
 import type { ProgressReportEntry, SelectedPatient } from '@/lib/ipd-types'
 import { Plus } from 'lucide-react'
@@ -13,9 +14,14 @@ import { Plus } from 'lucide-react'
 interface ProgressReportViewProps {
   patient: SelectedPatient
   language: 'en' | 'mr'
+  onManageDrugOrders: () => void
 }
 
-export const ProgressReportView = ({ patient, language }: ProgressReportViewProps) => {
+export const ProgressReportView = ({
+  patient,
+  language,
+  onManageDrugOrders,
+}: ProgressReportViewProps) => {
   const t = translations[language]
   const [entries, setEntries] = useState<ProgressReportEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -78,6 +84,12 @@ export const ProgressReportView = ({ patient, language }: ProgressReportViewProp
         }}
       />
 
+      <DrugOrdersSummary
+        patientId={patient.id}
+        language={language}
+        onManageDrugOrders={onManageDrugOrders}
+      />
+
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-gray-700 uppercase tracking-wide text-sm">
           {t.clinicalNotes}
@@ -101,6 +113,7 @@ export const ProgressReportView = ({ patient, language }: ProgressReportViewProp
           editingEntry={editingEntry}
           onSaved={handleSaved}
           onCancel={() => { setShowForm(false); setEditingEntry(null) }}
+          onManageDrugOrders={onManageDrugOrders}
         />
       )}
 

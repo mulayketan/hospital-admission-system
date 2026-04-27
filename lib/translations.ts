@@ -125,6 +125,13 @@ export const translations = {
     admissionNote: "Admission Note",
     saveEntry: "Save Entry",
     editEntry: "Edit Entry",
+    progressCurrentMedications: "Current medications (Drug Orders)",
+    addManageDrugOrders: "Add / manage drug orders",
+    progressMedicationsBlurb:
+      "Structured prescriptions are entered on the Drug Orders tab. This list is read-only here.",
+    noDrugsInOrderSheet: "No drug orders yet. Use the button above to add medications.",
+    treatmentAdditionalNotes:
+      "Optional: extra instructions, non-drug orders, or context. For medications, use Drug Orders.",
 
     // Nursing Notes
     addNote: "Add Note",
@@ -320,6 +327,13 @@ export const translations = {
     admissionNote: "दाखल नोट",
     saveEntry: "नोंद सेव्ह करा",
     editEntry: "नोंद संपादित करा",
+    progressCurrentMedications: "सध्याचे औषध (औषध आदेश)",
+    addManageDrugOrders: "औषध आदेश जोडा / व्यवस्थापित करा",
+    progressMedicationsBlurb:
+      "संरचित प्रिस्क्रिप्शन औषध आदेश टॅबवर नोंदवतात. ही यादी येथे फक्त पाहण्यासाठी आहे.",
+    noDrugsInOrderSheet: "अद्याप औषध आदेश नाहीत. औषध जोडण्यासाठी वरील बटण वापरा.",
+    treatmentAdditionalNotes:
+      "पर्यायी: अतिरिक्त सूचना किंवा संदर्भ. औषधांसाठी औषध आदेश वापरा.",
 
     // Nursing Notes
     addNote: "नोट जोडा",

@@ -222,7 +222,11 @@ export const IpdTreatmentPanel = ({
       {/* Sub-tab content */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         {activeSubTab === 'progress-report' && (
-          <ProgressReportView patient={selectedPatient} language={language} />
+          <ProgressReportView
+            patient={selectedPatient}
+            language={language}
+            onManageDrugOrders={() => setActiveSubTab('drug-orders')}
+          />
         )}
         {activeSubTab === 'nursing-notes' && (
           <NursingNotesView patient={selectedPatient} language={language} />
