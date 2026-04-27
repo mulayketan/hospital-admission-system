@@ -1,7 +1,11 @@
 /** @type {import('next').NextConfig} */
+// `output: 'standalone'` is for production (`next build` on Vercel / `next start`). If it
+// is always set, `next dev` can fail with ENOENT for prerender-manifest,
+// fallback-build-manifest, and server/pages/_document.js in App Router–only projects.
+const isDev = process.env.NODE_ENV === 'development'
+
 const nextConfig = {
-  // Optimize for Vercel deployment
-  output: 'standalone',
+  ...(!isDev && { output: 'standalone' }),
 
   // Next.js 15.5+: ensure vendored NSS/NSPR .so files traced into PDF routes; also ship
   // public fonts + logo so readFile in ipd-pdf-generator works on Vercel standalone.
