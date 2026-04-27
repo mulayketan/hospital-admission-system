@@ -173,9 +173,25 @@ const frequencyRowCount = (value: string | null | undefined): number => {
 /** Format a Date as "D/M" (no year, for day-column headers). */
 const fmtDayHeader = (d: Date): string => `${d.getDate()}/${d.getMonth() + 1}`
 
-/** Stack comma-separated times vertically (replace "," with "<br>"). */
-const stackTimes = (val: string): string =>
-  esc(val).replace(/,/g, '<br>')
+/** Order sheet day cell: single line so fixed-height rows are not stretched by stacked times. */
+const stackTimesOrderSheet = (val: string): string => esc(val).replace(/,/g, ', ')
+
+/** Remove frequency labels mistakenly stored in day columns (e.g. STAT duplicate). */
+const sanitizeOrderSheetDayValue = (drug: DrugOrder, raw: string): string => {
+  const freqN = normalizeFrequency(drug.frequency)
+  const hasTimeOrDosePattern = (s: string) => /\d|AM|PM|[:/]|\bMG\b|ML\b/i.test(s)
+
+  return (raw || '')
+    .split(',')
+    .map(p => p.trim())
+    .filter(p => {
+      if (!p) return false
+      if (/^STAT\.?$/i.test(p)) return false
+      if (freqN && normalizeFrequency(p) === freqN && !hasTimeOrDosePattern(p)) return false
+      return true
+    })
+    .join(', ')
+}
 
 /** Full patient name. */
 const fullName = (p: IPDPatient): string =>
@@ -214,18 +230,34 @@ const BASE_CSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'Noto Sans', Arial, sans-serif;
-    font-size: 12px;
-    line-height: 1.3;
+    font-size: 13px;
+    line-height: 1.35;
     color: #000;
     -webkit-font-smoothing: antialiased;
   }
   .marathi { font-family: 'Noto Sans Devanagari', 'Mangal', 'Kokila', Arial, sans-serif !important; }
-  .container { border: 2px solid #000; padding: 8px; }
+  /* box-decoration-break: when content spans PDF pages, border/pad repeat on each fragment */
+  .container {
+    border: 2px solid #000;
+    padding: 8px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+  /* One complete outer box per order-sheet section (incl. each continuation block) */
+  .order-sheet-print-wrap {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    border: 2px solid #000;
+    padding: 6px 8px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
   .badge {
     display: inline-block;
     background: #000; color: #fff;
     padding: 5px 12px; border-radius: 15px;
-    font-weight: bold; font-size: 14px;
+    font-weight: bold; font-size: 15px;
   }
   .header {
     display: flex; justify-content: space-between; align-items: flex-start;
@@ -234,29 +266,82 @@ const BASE_CSS = `
   .logo-img { height: 46px; width: auto; margin-right: 8px; }
   .uhid-box {
     display: inline-block; border: 1px solid #000;
-    padding: 3px 8px; font-weight: bold; font-size: 12px;
+    padding: 3px 8px; font-weight: bold; font-size: 13px;
     margin-top: 4px;
   }
   .patient-strip {
     border: 1px solid #000; padding: 5px 8px;
-    margin: 5px 0; font-size: 12px;
+    margin: 5px 0; font-size: 13px;
   }
   .ps-row { display: flex; gap: 12px; flex-wrap: wrap; }
   .ps-item { white-space: nowrap; }
-  .ps-label { font-weight: bold; }
-  .ps-value { border-bottom: 1px solid #aaa; min-width: 60px; display: inline-block; }
+  .ps-label { font-weight: bold; font-size: 13px; }
+  .ps-value { border-bottom: 1px solid #aaa; min-width: 60px; display: inline-block; font-size: 13px; font-weight: 400; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #000; padding: 4px 5px; vertical-align: top; font-size: 11.5px; }
+  th, td { border: 1px solid #000; padding: 4px 5px; vertical-align: top; font-size: 12.5px; }
   th { background: #e8e8e8; font-weight: bold; text-align: center; }
   .cell-wrap { white-space: pre-wrap; word-break: break-word; }
-  .footer { margin-top: 12px; font-size: 11px; }
+  .footer { margin-top: 10px; font-size: 12px; }
   .footer-note {
     text-align: center; font-style: italic;
-    border-top: 1px solid #000; padding-top: 5px; margin-bottom: 10px;
+    border-top: 1px solid #000; padding-top: 5px; margin-bottom: 8px;
   }
   .footer-sigs { display: flex; justify-content: space-between; align-items: flex-end; }
   .sig-block { text-align: center; }
   .sig-line { border-bottom: 1px solid #000; height: 28px; width: 140px; margin: 0 auto 4px; }
+  /* Order sheet: fixed-height grid; thead/tfoot repeat on each printed page */
+  table.drug-order-sheet {
+    table-layout: fixed;
+    font-size: 14px;
+    border-collapse: collapse;
+    page-break-inside: auto;
+  }
+  table.drug-order-sheet thead { display: table-header-group; }
+  table.drug-order-sheet tfoot { display: table-footer-group; }
+  table.drug-order-sheet thead th {
+    height: 30px;
+    padding: 2px 4px;
+    vertical-align: middle;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  table.drug-order-sheet thead td.order-sheet-banner,
+  table.drug-order-sheet thead td.order-sheet-patient {
+    background: #fff;
+    font-size: 14px;
+  }
+  table.drug-order-sheet tfoot td.order-sheet-sig {
+    background: #fff;
+    border: 1px solid #000;
+    padding: 2px 5px 3px 5px;
+    vertical-align: middle;
+  }
+  /* STAT/OD/HS = 1 row; BD/TDS = multiple rows — each tr is the same height */
+  table.drug-order-sheet tbody tr {
+    height: 46px !important;
+    min-height: 46px;
+    max-height: 46px;
+  }
+  table.drug-order-sheet tbody td {
+    height: 46px !important;
+    min-height: 46px;
+    max-height: 46px !important;
+    padding: 1px 4px;
+    vertical-align: middle !important;
+    line-height: 1.15;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  table.drug-order-sheet tbody td.order-drug-name {
+    text-align: left;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  table.drug-order-sheet .cell-wrap {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 `
 
 // ---------------------------------------------------------------------------
@@ -271,6 +356,16 @@ const loadLogoSrc = (): string => {
   }
 }
 const ZH_LOGO_SRC = loadLogoSrc()
+
+/** Logo + Marathi/English lines — same pattern as order sheet (portrait: progress, nursing, chart, combined). */
+const ipdPortraitHospitalBlock = (justifyEnd: boolean): string => `
+  <div style="display:flex;align-items:center;gap:6px;${justifyEnd ? 'justify-content:flex-end;' : ''}">
+    <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
+    <div>
+      <div class="marathi" style="font-weight:bold;font-size:20px;line-height:1.15;">झंवर हॉस्पिटल</div>
+      <div style="font-weight:bold;font-size:18px;line-height:1.15;">Zawar Hospital</div>
+    </div>
+  </div>`
 
 // ---------------------------------------------------------------------------
 // Shared HTML wrapper (adds fonts + base styles for portrait or landscape)
@@ -377,7 +472,7 @@ export const generateProgressReportPDF = async ({
     adviceEntries.length > 0
       ? `
       <div style="margin:10px 0; border:2px solid #000;">
-        <div style="background:#000;color:#fff;padding:4px 8px;font-weight:bold;font-size:11px;">
+        <div style="background:#000;color:#fff;padding:4px 8px;font-weight:bold;font-size:12px;">
           INVESTIGATIONS / ADVICE
         </div>
         <table>
@@ -413,12 +508,7 @@ export const generateProgressReportPDF = async ({
         <span class="badge">PROGRESS REPORT</span>
       </div>
       <div style="text-align:right">
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;">
-          <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
-          <div>
-            <div style="font-weight:bold;font-size:13px;">Zawar Hospital</div>
-          </div>
-        </div>
+        ${ipdPortraitHospitalBlock(true)}
         <div class="uhid-box">UHID: ${esc(patient.uhidNo || '—')}</div>
       </div>
     </div>
@@ -428,7 +518,7 @@ export const generateProgressReportPDF = async ({
         <div class="ps-item"><span class="ps-label">Patient Name:</span>&nbsp;<span class="ps-value">${esc(fullName(patient))}</span></div>
         <div class="ps-item"><span class="ps-label">I.P.D No.:</span>&nbsp;<span class="ps-value">${esc(patient.ipdNo || '—')}</span></div>
         <div class="ps-item"><span class="ps-label">Age:</span>&nbsp;<span class="ps-value">${patient.age}</span></div>
-        <div class="ps-item"><span class="ps-label">SEX:</span>&nbsp;${patient.sex}</div>
+        <div class="ps-item"><span class="ps-label">SEX:</span>&nbsp;<span class="ps-value">${patient.sex}</span></div>
         <div class="ps-item"><span class="ps-label">BED No.:</span>&nbsp;<span class="ps-value">${esc(patient.bedNo || '—')}</span></div>
       </div>
     </div>
@@ -456,6 +546,7 @@ export const generateProgressReportPDF = async ({
     <div class="footer">
       <div class="footer-note">Every Entry to be Named, Signed, Dated &amp; Timed</div>
       <div class="footer-sigs" style="margin-top:10px;">
+        <div></div>
         <div class="sig-block">
           <div class="sig-line"></div>
           <div style="font-weight:bold;">${esc(patient.treatingDoctor || '')}</div>
@@ -496,7 +587,7 @@ export const generateNursingNotesPDF = async ({
     .join('')
 
   const body = `
-  <div style="text-align:right;margin-bottom:4px;font-size:11px;">
+  <div style="text-align:right;margin-bottom:4px;font-size:12px;">
     <strong>UHID:</strong> ${esc(patient.uhidNo || '—')}
   </div>
   <div class="container">
@@ -504,10 +595,7 @@ export const generateNursingNotesPDF = async ({
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="badge">NURSING NOTES</span>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
-        <div style="font-weight:bold;font-size:13px;">Zawar Hospital</div>
-      </div>
+      ${ipdPortraitHospitalBlock(false)}
     </div>
 
     <div class="patient-strip">
@@ -583,10 +671,7 @@ export const generateNursingChartPDF = async ({
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="badge">NURSING CHART</span>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
-        <div style="font-weight:bold;font-size:13px;">Zawar Hospital</div>
-      </div>
+      ${ipdPortraitHospitalBlock(false)}
     </div>
 
     <div class="patient-strip">
@@ -594,7 +679,7 @@ export const generateNursingChartPDF = async ({
         <div class="ps-item"><span class="ps-label">Patient Name:</span>&nbsp;<span class="ps-value">${esc(fullName(patient))}</span></div>
         <div class="ps-item"><span class="ps-label">Age:</span>&nbsp;<span class="ps-value">${patient.age}</span></div>
         <div class="ps-item"><span class="ps-label">IPD No.:</span>&nbsp;<span class="ps-value">${esc(patient.ipdNo || '—')}</span></div>
-        <div class="ps-item"><span class="ps-label">Sex M/F:</span>&nbsp;${patient.sex}</div>
+        <div class="ps-item"><span class="ps-label">Sex M/F:</span>&nbsp;<span class="ps-value">${patient.sex}</span></div>
       </div>
     </div>
 
@@ -647,10 +732,46 @@ export const generateNursingChartPDF = async ({
 //    DRUG_ORDER_DATE_COLUMNS_PER_PAGE date columns per page; PTO for continuations.
 // ---------------------------------------------------------------------------
 
-const DRUG_ORDER_NAME_PCT = 38
-const DRUG_ORDER_FREQ_PCT = 11
-const DRUG_ORDER_ROUTE_PCT = 11
-const DRUG_ORDER_START_PCT = 9
+/**
+ * Order grid widths (colgroup required: row 1 is full colspan).
+ * Date: columns get the remainder split evenly in drugOrderDatePcts().
+ */
+const DRUG_ORDER_NAME_PCT = 45
+const DRUG_ORDER_FREQ_PCT = 7
+const DRUG_ORDER_ROUTE_PCT = 7
+const DRUG_ORDER_START_PCT = 10
+
+/** Remaining table width (after name/freq/route/start) split across date columns. */
+const drugOrderDatePcts = (
+  namePct: number,
+  freqPct: number,
+  routePct: number,
+  startPct: number,
+  numDateCols: number
+): number[] => {
+  const rem = 100 - namePct - freqPct - routePct - startPct
+  if (numDateCols <= 0) return []
+  const base = rem / numDateCols
+  return Array.from({ length: numDateCols }, (_, i) =>
+    i < numDateCols - 1 ? base : rem - base * (numDateCols - 1)
+  )
+}
+
+const fmtPct = (n: number): string => (Math.round(n * 100) / 100).toString()
+
+/** Must be first child of <table> when row 1 is a full-width colspan. */
+const drugOrderColGroupHtml = (
+  namePct: number,
+  freqPct: number,
+  routePct: number,
+  startPct: number,
+  datePcts: number[]
+): string => {
+  const col = (w: number) => `<col style="width:${fmtPct(w)}%;" />`
+  return `<colgroup>
+${[col(namePct), col(freqPct), col(routePct), col(startPct), ...datePcts.map(col)].join('\n')}
+</colgroup>`
+}
 
 export const generateDrugOrderPDF = async ({
   patient,
@@ -661,7 +782,10 @@ export const generateDrugOrderPDF = async ({
 }): Promise<Buffer> => {
   if (drugOrders.length === 0) {
     return renderPDF(
-      htmlDoc('landscape', '<div class="container" style="padding:20px;text-align:center;color:#888;">No drug orders found.</div>'),
+      htmlDoc(
+        'landscape',
+        '<div class="order-sheet-print-wrap" style="padding:20px;text-align:center;color:#888;">No drug orders found.</div>'
+      ),
       'landscape'
     )
   }
@@ -681,8 +805,9 @@ export const generateDrugOrderPDF = async ({
     const ds = parseDateStr(drug.startDate)
     const dayOffset = Math.round((colDate(colN).getTime() - ds.getTime()) / 86_400_000)
     if (dayOffset < 0 || dayOffset > 35) return ''
-    const val = drug.days[`day${dayOffset + 1}`] || ''
-    return val ? stackTimes(val) : ''
+    const raw = drug.days[`day${dayOffset + 1}`] || ''
+    const val = sanitizeOrderSheetDayValue(drug, raw)
+    return val ? stackTimesOrderSheet(val) : ''
   }
 
   const hasDaysData = (from: number, to: number): boolean =>
@@ -696,40 +821,64 @@ export const generateDrugOrderPDF = async ({
   const drugAllergy = firstDrug.drugAllergy || ''
   const ward = firstDrug.ward || patient.ward || '—'
   const bedNo = firstDrug.bedNo || patient.bedNo || '—'
-  // Horizontal patient info bar — sits below the header, above the drug table
+  // Patient strip: name line same visual size as drug cells (table is 14px; value one step up for balance)
   const patientInfoRow = `
-    <div style="display:flex;border:1px solid #000;border-bottom:none;font-size:10px;line-height:1.45;margin-bottom:0;">
-      <div style="flex:2;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:9px;color:#555;">Patient Name</div>
-        <div>${esc(fullName(patient))}</div>
+    <div style="display:flex;border:1px solid #000;font-size:14px;line-height:1.25;">
+      <div style="flex:2;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:14px;color:#000;">Patient Name</div>
+        <div style="font-size:15px;font-weight:400;color:#000;line-height:1.2;">${esc(fullName(patient))}</div>
       </div>
-      <div style="flex:1.5;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:9px;color:#555;">Drug Allergy</div>
-        <div>${esc(drugAllergy)}</div>
+      <div style="flex:1.5;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:14px;color:#000;">Drug Allergy</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${esc(drugAllergy)}</div>
       </div>
-      <div style="flex:0.5;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:9px;color:#555;">Age</div>
-        <div>${patient.age}</div>
+      <div style="flex:0.5;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:14px;color:#000;">Age</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${patient.age}</div>
       </div>
-      <div style="flex:0.5;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:9px;color:#555;">Sex M/F</div>
-        <div>${patient.sex}</div>
+      <div style="flex:0.5;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:14px;color:#000;">Sex M/F</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${patient.sex}</div>
       </div>
-      <div style="flex:1;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:9px;color:#555;">Ward</div>
-        <div>${esc(wardLabel(ward))}</div>
+      <div style="flex:1;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:14px;color:#000;">Ward</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${esc(wardLabel(ward))}</div>
       </div>
-      <div style="flex:1;border-right:1px solid #000;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:9px;color:#555;">Room/Bed No.</div>
-        <div>${esc(bedNo)}</div>
+      <div style="flex:1;border-right:1px solid #000;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:14px;color:#000;">Room/Bed No.</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${esc(bedNo)}</div>
       </div>
-      <div style="flex:1;padding:3px 5px;">
-        <div style="font-weight:bold;font-size:9px;color:#555;">IPD No.</div>
-        <div>${esc(patient.ipdNo || '—')}</div>
+      <div style="flex:1;padding:2px 4px;">
+        <div style="font-weight:bold;font-size:14px;color:#000;">IPD No.</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${esc(patient.ipdNo || '—')}</div>
       </div>
     </div>`
 
   const COLS_PER_PAGE = DRUG_ORDER_DATE_COLUMNS_PER_PAGE
+
+  const orderHeaderHtml = `
+    <div class="header" style="margin-bottom:4px;padding:2px 0;">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:center;">
+        <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
+        <div>
+          <div style="font-weight:bold;font-size:22px;" class="marathi">झंवर हॉस्पिटल</div>
+          <div style="font-size:19px;font-weight:bold;">Zawar Hospital</div>
+        </div>
+      </div>
+      <div><span class="badge" style="font-size:19px;">ORDER SHEET</span></div>
+    </div>`
+
+  const orderSheetSigHtml = `
+    <div class="footer" style="margin-top:0;padding-top:0;">
+      <div class="footer-sigs">
+        <div></div>
+        <div class="sig-block">
+          <div class="sig-line"></div>
+          <div style="font-weight:bold;">${esc(patient.treatingDoctor || '')}</div>
+          <div>Treating Doctor</div>
+        </div>
+      </div>
+    </div>`
 
   const buildPage = (daysFrom: number, daysTo: number, isPto: boolean): string => {
     const numCols = daysTo - daysFrom + 1
@@ -737,18 +886,18 @@ export const generateDrugOrderPDF = async ({
     const freqPct = DRUG_ORDER_FREQ_PCT
     const routePct = DRUG_ORDER_ROUTE_PCT
     const startPct = DRUG_ORDER_START_PCT
-    const datePct = Math.floor(
-      (100 - namePct - freqPct - routePct - startPct) / numCols
-    )
+    const datePcts = drugOrderDatePcts(namePct, freqPct, routePct, startPct, numCols)
+    const colGroup = drugOrderColGroupHtml(namePct, freqPct, routePct, startPct, datePcts)
 
-    // Date column headers stay blank for staff-written calendar dates; Start shows system date per row.
+    // Date column headers: one line so header row height matches the fixed grid
     const headerRow = [
-      `<th style="width:${namePct}%;">Name of Drug</th>`,
-      `<th style="width:${freqPct}%;">Freq.</th>`,
-      `<th style="width:${routePct}%;">Route</th>`,
-      `<th style="width:${startPct}%;text-align:center;">Start</th>`,
-      ...Array.from({ length: numCols }, () =>
-        `<th style="width:${datePct}%;text-align:center;font-weight:bold;">Date:<br/><span style="font-weight:normal;font-size:8px;">&nbsp;</span></th>`
+      `<th style="width:${fmtPct(namePct)}%;">Name of Drug</th>`,
+      `<th style="width:${fmtPct(freqPct)}%;">Freq.</th>`,
+      `<th style="width:${fmtPct(routePct)}%;">Route</th>`,
+      `<th style="width:${fmtPct(startPct)}%;text-align:center;">Start</th>`,
+      ...datePcts.map(
+        w =>
+          `<th style="width:${fmtPct(w)}%;text-align:center;font-weight:bold;">Date:</th>`
       ),
     ].join('')
 
@@ -757,50 +906,47 @@ export const generateDrugOrderPDF = async ({
         const repeatRows = frequencyRowCount(drug.frequency)
         return Array.from({ length: repeatRows }, (_, rowIdx) => `
           <tr>
-            <td class="cell-wrap">${rowIdx === 0 ? esc(drug.drugName) : ''}</td>
+            <td class="cell-wrap order-drug-name">${rowIdx === 0 ? esc(drug.drugName) : ''}</td>
             <td style="text-align:center">${rowIdx === 0 ? esc(drug.frequency) : ''}</td>
             <td style="text-align:center">${rowIdx === 0 ? esc(drug.route) : ''}</td>
-            <td style="text-align:center;font-size:10px;white-space:nowrap;">${rowIdx === 0 ? formatDrugStartDatePdf(drug.startDate) : ''}</td>
+            <td style="text-align:center;white-space:nowrap;">${rowIdx === 0 ? formatDrugStartDatePdf(drug.startDate) : ''}</td>
             ${Array.from({ length: numCols }, (_, i) => {
               const val = cellValue(drug, daysFrom + i)
-              return `<td style="text-align:center;vertical-align:top;font-size:10px;">${val}</td>`
+              return `<td style="text-align:center;">${val}</td>`
             }).join('')}
           </tr>`)
       })
       .join('')
 
-    return `
-      ${isPto ? '<div style="font-weight:bold;font-size:10px;margin:4px 0;">PTO</div>' : ''}
-      ${patientInfoRow}
-      <table style="table-layout:fixed;width:100%;font-size:10.5px;">
-        <thead><tr>${headerRow}</tr></thead>
-        <tbody>${bodyRows}</tbody>
-      </table>`
+    const colSpan = 4 + numCols
+    const ptoThead = isPto
+      ? `<tr><td colspan="${colSpan}" style="border:1px solid #000;padding:2px 6px;font-weight:bold;font-size:10px;">PTO</td></tr>`
+      : ''
+
+    return `<table class="drug-order-sheet" style="width:100%;">
+      ${colGroup}
+      <thead>
+        <tr>
+          <td colspan="${colSpan}" class="order-sheet-banner" style="border:1px solid #000;padding:0;vertical-align:top;">
+            ${orderHeaderHtml}
+          </td>
+        </tr>
+        ${ptoThead}
+        <tr>
+          <td colspan="${colSpan}" class="order-sheet-patient" style="border:1px solid #000;padding:0;vertical-align:top;">
+            ${patientInfoRow}
+          </td>
+        </tr>
+        <tr>${headerRow}</tr>
+      </thead>
+      <tbody>${bodyRows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="${colSpan}" class="order-sheet-sig">${orderSheetSigHtml}</td>
+        </tr>
+      </tfoot>
+    </table>`
   }
-
-  const orderHeader = `
-    <div class="header" style="margin-bottom:6px;">
-      <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:center;">
-        <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
-        <div>
-          <div style="font-weight:bold;font-size:16px;" class="marathi">झंवर हॉस्पिटल</div>
-          <div style="font-size:14px;font-weight:bold;">Zawar Hospital</div>
-        </div>
-      </div>
-      <div><span class="badge" style="font-size:16px;">ORDER SHEET</span></div>
-    </div>`
-
-  const orderFooter = `
-    <div class="footer" style="margin-top:12px;">
-      <div class="footer-sigs">
-        <div class="sig-block">
-          <div class="sig-line"></div>
-          <div style="font-weight:bold;">${esc(patient.treatingDoctor || '')}</div>
-          <div>Treating Doctor</div>
-        </div>
-        <div></div>
-      </div>
-    </div>`
 
   const pages: string[] = []
   for (let start = 1; start <= DRUG_ORDER_PDF_MAX_DAYS; start += COLS_PER_PAGE) {
@@ -810,14 +956,12 @@ export const generateDrugOrderPDF = async ({
     }
   }
 
-  const body = `
-  <div class="container">
-    ${orderHeader}
-    ${pages.map((p, i) =>
-      i === 0 ? p : `<div style="page-break-before:always;">${orderHeader}${p}</div>`
-    ).join('')}
-    ${orderFooter}
-  </div>`
+  const body = pages
+    .map(
+      (p, i) =>
+        `<div class="order-sheet-print-wrap"${i > 0 ? ' style="page-break-before:always;"' : ''}>${p}</div>`
+    )
+    .join('')
 
   return renderPDF(htmlDoc('landscape', body, `Order Sheet — ${fullName(patient)}`), 'landscape')
 }
@@ -867,7 +1011,7 @@ export const generateCombinedIPDPDF = async ({
     adviceEntries.length > 0
       ? `
       <div style="margin:10px 0; border:2px solid #000;">
-        <div style="background:#000;color:#fff;padding:4px 8px;font-weight:bold;font-size:11px;">INVESTIGATIONS / ADVICE</div>
+        <div style="background:#000;color:#fff;padding:4px 8px;font-weight:bold;font-size:12px;">INVESTIGATIONS / ADVICE</div>
         <table>
           <thead>
             <tr>
@@ -906,10 +1050,7 @@ export const generateCombinedIPDPDF = async ({
       <div class="header">
         <span class="badge">PROGRESS REPORT</span>
         <div style="text-align:right;">
-          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
-            <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
-            <div style="font-weight:bold;font-size:13px;">Zawar Hospital</div>
-          </div>
+          ${ipdPortraitHospitalBlock(true)}
           <div class="uhid-box">UHID: ${esc(patient.uhidNo || '—')}</div>
         </div>
       </div>
@@ -917,9 +1058,9 @@ export const generateCombinedIPDPDF = async ({
         <div class="ps-row">
           <div class="ps-item"><span class="ps-label">Patient Name:</span>&nbsp;<span class="ps-value">${esc(fullName(patient))}</span></div>
           <div class="ps-item"><span class="ps-label">I.P.D No.:</span>&nbsp;<span class="ps-value">${esc(patient.ipdNo || '—')}</span></div>
-          <div class="ps-item"><span class="ps-label">Age:</span>&nbsp;${patient.age}</div>
-          <div class="ps-item"><span class="ps-label">SEX:</span>&nbsp;${patient.sex}</div>
-          <div class="ps-item"><span class="ps-label">BED No.:</span>&nbsp;${esc(patient.bedNo || '—')}</div>
+          <div class="ps-item"><span class="ps-label">Age:</span>&nbsp;<span class="ps-value">${patient.age}</span></div>
+          <div class="ps-item"><span class="ps-label">SEX:</span>&nbsp;<span class="ps-value">${patient.sex}</span></div>
+          <div class="ps-item"><span class="ps-label">BED No.:</span>&nbsp;<span class="ps-value">${esc(patient.bedNo || '—')}</span></div>
         </div>
       </div>
       <div style="background:#f2f2f2;border:1px solid #000;padding:6px;margin:5px 0;">
@@ -931,6 +1072,9 @@ export const generateCombinedIPDPDF = async ({
       ${adviceBlock}
       <div class="footer">
         <div class="footer-note">Every Entry to be Named, Signed, Dated &amp; Timed</div>
+        <div class="footer-sigs" style="margin-top:10px;">
+          <div></div>${sigBlock('Treating Doctor', patient.treatingDoctor)}
+        </div>
       </div>
     </div>`
 
@@ -947,19 +1091,16 @@ export const generateCombinedIPDPDF = async ({
     <div class="container" style="page:portrait-page;">
       <div class="header">
         <span class="badge">NURSING NOTES</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
-          <div style="font-weight:bold;font-size:13px;">Zawar Hospital</div>
-        </div>
+        ${ipdPortraitHospitalBlock(false)}
       </div>
       <div class="patient-strip">
         <div style="display:flex;gap:20px;margin-bottom:4px;">
           <div><span class="ps-label">Patient Name:</span>&nbsp;<span class="ps-value" style="min-width:140px;">${esc(fullName(patient))}</span></div>
-          <div><span class="ps-label">Age:</span>&nbsp;${patient.age}</div>
+          <div><span class="ps-label">Age:</span>&nbsp;<span class="ps-value">${patient.age}</span></div>
         </div>
         <div style="display:flex;gap:20px;">
           <div><span class="ps-label">IPD No.:</span>&nbsp;<span class="ps-value" style="min-width:100px;">${esc(patient.ipdNo || '—')}</span></div>
-          <div><span class="ps-label">Sex M/F:</span>&nbsp;${patient.sex}</div>
+          <div><span class="ps-label">Sex M/F:</span>&nbsp;<span class="ps-value">${patient.sex}</span></div>
         </div>
       </div>
       <table><thead><tr><th style="width:15%">Date &amp; Time</th><th style="width:45%">Notes</th><th style="width:40%">Treatment Given</th></tr></thead>
@@ -992,17 +1133,14 @@ export const generateCombinedIPDPDF = async ({
     <div class="container" style="page:portrait-page;">
       <div class="header">
         <span class="badge">NURSING CHART</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
-          <div style="font-weight:bold;font-size:13px;">Zawar Hospital</div>
-        </div>
+        ${ipdPortraitHospitalBlock(false)}
       </div>
       <div class="patient-strip">
         <div class="ps-row">
-          <div class="ps-item"><span class="ps-label">Patient Name:</span>&nbsp;${esc(fullName(patient))}</div>
-          <div class="ps-item"><span class="ps-label">Age:</span>&nbsp;${patient.age}</div>
-          <div class="ps-item"><span class="ps-label">IPD No.:</span>&nbsp;${esc(patient.ipdNo || '—')}</div>
-          <div class="ps-item"><span class="ps-label">Sex M/F:</span>&nbsp;${patient.sex}</div>
+          <div class="ps-item"><span class="ps-label">Patient Name:</span>&nbsp;<span class="ps-value">${esc(fullName(patient))}</span></div>
+          <div class="ps-item"><span class="ps-label">Age:</span>&nbsp;<span class="ps-value">${patient.age}</span></div>
+          <div class="ps-item"><span class="ps-label">IPD No.:</span>&nbsp;<span class="ps-value">${esc(patient.ipdNo || '—')}</span></div>
+          <div class="ps-item"><span class="ps-label">Sex M/F:</span>&nbsp;<span class="ps-value">${patient.sex}</span></div>
         </div>
       </div>
       <table style="table-layout:fixed;margin-top:6px;">
@@ -1066,7 +1204,7 @@ async function buildDrugOrderSection(
   drugOrders: DrugOrder[]
 ): Promise<string> {
   if (drugOrders.length === 0) {
-    return `<div class="container" style="page:landscape-page;padding:20px;text-align:center;color:#888;">No drug orders.</div>`
+    return `<div class="order-sheet-print-wrap" style="page:landscape-page;padding:20px;text-align:center;color:#888;">No drug orders.</div>`
   }
 
   const globalStart = drugOrders.reduce<Date>((earliest, d) => {
@@ -1084,8 +1222,9 @@ async function buildDrugOrderSection(
     const ds = parseDateStr(drug.startDate)
     const dayOffset = Math.round((colDate(colN).getTime() - ds.getTime()) / 86_400_000)
     if (dayOffset < 0 || dayOffset > 35) return ''
-    const val = drug.days[`day${dayOffset + 1}`] || ''
-    return val ? stackTimes(val) : ''
+    const raw = drug.days[`day${dayOffset + 1}`] || ''
+    const val = sanitizeOrderSheetDayValue(drug, raw)
+    return val ? stackTimesOrderSheet(val) : ''
   }
 
   const hasDaysData = (from: number, to: number): boolean =>
@@ -1100,38 +1239,62 @@ async function buildDrugOrderSection(
   const ward = firstDrug.ward || patient.ward || '—'
   const bedNo = firstDrug.bedNo || patient.bedNo || '—'
   const patientInfoRow = `
-    <div style="display:flex;border:1px solid #000;border-bottom:none;font-size:10px;line-height:1.45;">
+    <div style="display:flex;border:1px solid #000;font-size:14px;line-height:1.25;">
       <div style="flex:2;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:8.5px;color:#555;">Patient Name</div>
-        <div>${esc(fullName(patient))}</div>
+        <div style="font-weight:bold;font-size:14px;color:#000;">Patient Name</div>
+        <div style="font-size:15px;font-weight:400;color:#000;line-height:1.2;">${esc(fullName(patient))}</div>
       </div>
       <div style="flex:1.5;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:8.5px;color:#555;">Drug Allergy</div>
-        <div>${esc(drugAllergy)}</div>
+        <div style="font-weight:bold;font-size:14px;color:#000;">Drug Allergy</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${esc(drugAllergy)}</div>
       </div>
       <div style="flex:0.5;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:8.5px;color:#555;">Age</div>
-        <div>${patient.age}</div>
+        <div style="font-weight:bold;font-size:14px;color:#000;">Age</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${patient.age}</div>
       </div>
       <div style="flex:0.5;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:8.5px;color:#555;">Sex M/F</div>
-        <div>${patient.sex}</div>
+        <div style="font-weight:bold;font-size:14px;color:#000;">Sex M/F</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${patient.sex}</div>
       </div>
       <div style="flex:1;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:8.5px;color:#555;">Ward</div>
-        <div>${esc(wardLabel(ward))}</div>
+        <div style="font-weight:bold;font-size:14px;color:#000;">Ward</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${esc(wardLabel(ward))}</div>
       </div>
       <div style="flex:1;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:8.5px;color:#555;">Room/Bed No.</div>
-        <div>${esc(bedNo)}</div>
+        <div style="font-weight:bold;font-size:14px;color:#000;">Room/Bed No.</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${esc(bedNo)}</div>
       </div>
       <div style="flex:1;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:8.5px;color:#555;">IPD No.</div>
-        <div>${esc(patient.ipdNo || '—')}</div>
+        <div style="font-weight:bold;font-size:14px;color:#000;">IPD No.</div>
+        <div style="font-size:14px;font-weight:400;color:#000;">${esc(patient.ipdNo || '—')}</div>
       </div>
     </div>`
 
   const COLS_PER_PAGE = DRUG_ORDER_DATE_COLUMNS_PER_PAGE
+
+  const orderHeaderHtmlCombined = `
+    <div class="header" style="margin-bottom:4px;padding:2px 0;">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:center;">
+        <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
+        <div>
+          <div class="marathi" style="font-weight:bold;font-size:20px;">झंवर हॉस्पिटल</div>
+          <div style="font-size:18px;font-weight:bold;">Zawar Hospital</div>
+        </div>
+      </div>
+      <span class="badge" style="font-size:18px;">ORDER SHEET</span>
+    </div>`
+
+  const orderSheetSigHtmlCombined = `
+    <div class="footer" style="margin-top:0;padding-top:0;">
+      <div class="footer-sigs">
+        <div></div>
+        <div class="sig-block">
+          <div class="sig-line"></div>
+          <div style="font-weight:bold;">${esc(patient.treatingDoctor || '')}</div>
+          <div>Treating Doctor</div>
+        </div>
+      </div>
+    </div>`
 
   const buildGrid = (from: number, to: number, isPto: boolean): string => {
     const numCols = to - from + 1
@@ -1139,16 +1302,16 @@ async function buildDrugOrderSection(
     const freqPct = DRUG_ORDER_FREQ_PCT
     const routePct = DRUG_ORDER_ROUTE_PCT
     const startPct = DRUG_ORDER_START_PCT
-    const datePct = Math.floor(
-      (100 - namePct - freqPct - routePct - startPct) / numCols
-    )
+    const datePcts = drugOrderDatePcts(namePct, freqPct, routePct, startPct, numCols)
+    const colGroup = drugOrderColGroupHtml(namePct, freqPct, routePct, startPct, datePcts)
     const headerRow = [
-      `<th style="width:${namePct}%">Name of Drug</th>`,
-      `<th style="width:${freqPct}%">Freq.</th>`,
-      `<th style="width:${routePct}%">Route</th>`,
-      `<th style="width:${startPct}%;text-align:center">Start</th>`,
-      ...Array.from({ length: numCols }, () =>
-        `<th style="width:${datePct}%;text-align:center;font-weight:bold;">Date:<br/><span style="font-weight:normal;font-size:7.5px;">&nbsp;</span></th>`
+      `<th style="width:${fmtPct(namePct)}%">Name of Drug</th>`,
+      `<th style="width:${fmtPct(freqPct)}%">Freq.</th>`,
+      `<th style="width:${fmtPct(routePct)}%">Route</th>`,
+      `<th style="width:${fmtPct(startPct)}%;text-align:center">Start</th>`,
+      ...datePcts.map(
+        w =>
+          `<th style="width:${fmtPct(w)}%;text-align:center;font-weight:bold;">Date:</th>`
       ),
     ].join('')
     const rows = drugOrders
@@ -1156,46 +1319,47 @@ async function buildDrugOrderSection(
         const repeatRows = frequencyRowCount(drug.frequency)
         return Array.from({ length: repeatRows }, (_, rowIdx) => `
           <tr>
-            <td class="cell-wrap">${rowIdx === 0 ? esc(drug.drugName) : ''}</td>
+            <td class="cell-wrap order-drug-name">${rowIdx === 0 ? esc(drug.drugName) : ''}</td>
             <td style="text-align:center">${rowIdx === 0 ? esc(drug.frequency) : ''}</td>
-            <td style="text-align:center;font-size:10px;">${rowIdx === 0 ? esc(drug.route) : ''}</td>
-            <td style="text-align:center;font-size:9.5px;white-space:nowrap">${rowIdx === 0 ? formatDrugStartDatePdf(drug.startDate) : ''}</td>
+            <td style="text-align:center">${rowIdx === 0 ? esc(drug.route) : ''}</td>
+            <td style="text-align:center;white-space:nowrap">${rowIdx === 0 ? formatDrugStartDatePdf(drug.startDate) : ''}</td>
             ${Array.from({ length: numCols }, (_, i) => {
               const v = cellValue(drug, from + i)
-              return `<td style="text-align:center;vertical-align:top;font-size:9.5px;">${v}</td>`
+              return `<td style="text-align:center;">${v}</td>`
             }).join('')}
           </tr>`)
       })
       .join('')
-    return `
-      ${isPto ? '<div style="font-weight:bold;font-size:9.5px;margin-bottom:3px;">PTO</div>' : ''}
-      ${patientInfoRow}
-      <table style="table-layout:fixed;width:100%;font-size:10px;">
-        <thead><tr>${headerRow}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`
+
+    const colSpan = 4 + numCols
+    const ptoThead = isPto
+      ? `<tr><td colspan="${colSpan}" style="border:1px solid #000;padding:2px 6px;font-weight:bold;font-size:10px;">PTO</td></tr>`
+      : ''
+
+    return `<table class="drug-order-sheet" style="width:100%;">
+      ${colGroup}
+      <thead>
+        <tr>
+          <td colspan="${colSpan}" class="order-sheet-banner" style="border:1px solid #000;padding:0;vertical-align:top;">
+            ${orderHeaderHtmlCombined}
+          </td>
+        </tr>
+        ${ptoThead}
+        <tr>
+          <td colspan="${colSpan}" class="order-sheet-patient" style="border:1px solid #000;padding:0;vertical-align:top;">
+            ${patientInfoRow}
+          </td>
+        </tr>
+        <tr>${headerRow}</tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="${colSpan}" class="order-sheet-sig">${orderSheetSigHtmlCombined}</td>
+        </tr>
+      </tfoot>
+    </table>`
   }
-
-  const orderHeader = `
-    <div class="header" style="margin-bottom:6px;">
-      <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:center;">
-        <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
-        <div>
-          <div class="marathi" style="font-weight:bold;font-size:15px;">झंवर हॉस्पिटल</div>
-          <div style="font-size:13px;font-weight:bold;">Zawar Hospital</div>
-        </div>
-      </div>
-      <span class="badge" style="font-size:15px;">ORDER SHEET</span>
-    </div>`
-
-  const sig = `
-    <div class="footer"><div class="footer-sigs" style="margin-top:10px;">
-      <div class="sig-block"><div class="sig-line"></div>
-        <div style="font-weight:bold;">${esc(patient.treatingDoctor || '')}</div>
-        <div>Treating Doctor</div>
-      </div>
-      <div></div>
-    </div></div>`
 
   const pages: string[] = []
   for (let start = 1; start <= DRUG_ORDER_PDF_MAX_DAYS; start += COLS_PER_PAGE) {
@@ -1206,11 +1370,11 @@ async function buildDrugOrderSection(
   }
 
   return pages
-    .map((grid, i) => `
-      <div class="container" style="page:landscape-page;">
-        ${orderHeader}
+    .map(
+      grid => `
+      <div class="order-sheet-print-wrap" style="page:landscape-page;">
         ${grid}
-        ${i === pages.length - 1 ? sig : ''}
-      </div>`)
+      </div>`
+    )
     .join('<div class="new-page"></div>')
 }

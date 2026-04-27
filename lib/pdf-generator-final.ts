@@ -141,7 +141,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Noto Sans Devanagari', 'Noto Sans', 'Mangal', 'Shree Devanagari 714', 'Kokila', 'Utsaah', Arial, sans-serif;
-            font-size: 11px;
+            font-size: 12px;
             line-height: 1.2;
             color: #000;
             -webkit-font-smoothing: antialiased;
@@ -161,26 +161,26 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         .logo-container { display: flex; align-items: center; }
         .logo-image { height: 60px; width: auto; margin-right: 15px; }
         .hospital-text { display: flex; flex-direction: column; }
-        .hospital-name { font-size: 19px; font-weight: bold; line-height: 1.1; margin-bottom: 3px; }
+        .hospital-name { font-size: 20px; font-weight: bold; line-height: 1.1; margin-bottom: 3px; }
         .hospital-line { width: 120px; height: 2px; background: #000; }
-        .registration-badge { background: #000; color: white; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 13px; position: absolute; left: 50%; transform: translateX(-50%); }
+        .registration-badge { background: #000; color: white; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 14px; position: absolute; left: 50%; transform: translateX(-50%); }
         .id-boxes { display: flex; gap: 10px; }
-        .ipd-box, .uhid-box { border: 1px solid #000; padding: 6px 10px; text-align: center; font-weight: bold; min-width: 70px; font-size: 12px; line-height: 1.1; }
+        .ipd-box, .uhid-box { border: 1px solid #000; padding: 6px 10px; text-align: center; font-weight: bold; min-width: 70px; font-size: 13px; line-height: 1.1; }
         /* Patient Information Table */
         .patient-info { margin: 12px 0; clear: both; }
         .info-table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
-        .info-table td { border: 1px solid #000; padding: 4px 6px; vertical-align: top; font-size: 12px; }
+        .info-table td { border: 1px solid #000; padding: 4px 6px; vertical-align: top; font-size: 13px; }
         .label { background: #f5f5f5; font-weight: bold; width: 16.66%; }
         .value { width: 16.66%; }
-        .marathi-text { font-size: 13px; margin-bottom: 1px; }
+        .marathi-text { font-size: 14px; margin-bottom: 1px; }
         /* Terms and Conditions */
         .terms-section { margin: 15px 0; border: 1px solid #000; padding: 8px; clear: both; }
-        .term-item { margin-bottom: 6px; font-size: 13px; line-height: 1.3; }
+        .term-item { margin-bottom: 6px; font-size: 14px; line-height: 1.3; }
         /* Payee Slip */
         .payee-section { margin: 30px 0 20px 0; border: 1px solid #000; padding: 8px; clear: both; }
-        .payee-header { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 6px; border: 1px solid #000; padding: 3px; }
+        .payee-header { text-align: center; font-weight: bold; font-size: 15px; margin-bottom: 6px; border: 1px solid #000; padding: 3px; }
         .charges-table { width: 100%; border-collapse: collapse; border: 2px solid #000; table-layout: fixed; }
-        .charges-table th, .charges-table td { border: 1px solid #000; padding: 4px 3px; text-align: center; font-size: 12px; word-wrap: break-word; }
+        .charges-table th, .charges-table td { border: 1px solid #000; padding: 4px 3px; text-align: center; font-size: 13px; word-wrap: break-word; }
         .charges-table th { background: #f5f5f5; font-weight: bold; vertical-align: middle; }
         .charges-table th:nth-child(1) { width: 7%; }
         .charges-table th:nth-child(2) { width: 15%; }
@@ -191,20 +191,20 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         .charges-table th:nth-child(7) { width: 12%; }
         .charges-table th:nth-child(8) { width: 18%; }
         .charges-table th:nth-child(9) { width: 8%; }
-        .monitor-charges { text-align: center; margin: 6px 0; font-weight: bold; font-size: 13px; }
-        .rates-section { text-align: center; margin: 8px 0; font-size: 12px; font-weight: bold; }
-        .signature-lines { margin: 15px 0; font-size: 12px; clear: both; }
+        .monitor-charges { text-align: center; margin: 6px 0; font-weight: bold; font-size: 14px; }
+        .rates-section { text-align: center; margin: 8px 0; font-size: 13px; font-weight: bold; }
+        .signature-lines { margin: 15px 0; font-size: 13px; clear: both; }
         .signature-row { display: flex; justify-content: space-between; margin: 3px 0; }
         /* Page Break */
         .page-break { page-break-before: always; margin-top: 0; }
         /* Appendix B */
         .appendix-section { margin: 20px 0; border: 1px solid #000; padding: 12px; clear: both; }
-        .appendix-header { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 8px; }
+        .appendix-header { text-align: center; font-weight: bold; font-size: 15px; margin-bottom: 8px; }
         .diagnosis-section { margin: 8px 0; }
         .diagnosis-line { border-bottom: 1px solid #000; height: 15px; margin: 4px 0; }
-        .marathi-content { font-size: 13px; line-height: 1.4; margin: 8px 0; }
+        .marathi-content { font-size: 14px; line-height: 1.4; margin: 8px 0; }
         /* Final Signatures */
-        .final-signatures { display: flex; justify-content: space-between; margin-top: 15px; font-size: 12px; }
+        .final-signatures { display: flex; justify-content: space-between; margin-top: 15px; font-size: 13px; }
         .signature-block { text-align: center; width: 45%; }
         .signature-line { border-bottom: 1px solid #000; height: 25px; margin: 8px 0; }
     </style>
@@ -367,7 +367,7 @@ export const generateAdmissionPDF = async ({ patient, wardCharges }: PDFGenerati
         </div>
         
         <!-- Signature Section -->
-        <div style="margin: 25px 0; display: flex; justify-content: space-between; font-size: 13px; clear: both;">
+        <div style="margin: 25px 0; display: flex; justify-content: space-between; font-size: 14px; clear: both;">
             <div style="width: 45%;">
                 <div style="font-weight: bold; margin-bottom: 20px;">Signature of Relative (Legal Guardian)</div>
                 <div style="margin-bottom: 8px;">Date :</div>

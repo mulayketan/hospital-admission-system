@@ -150,4 +150,26 @@ describe('IPD PDF generator templates', () => {
 
     expect(capturedHtml).not.toContain('PTO')
   })
+
+  it('generateDrugOrderPDF uses colgroup so columns align (wide name, non-trivial Freq/Route)', async () => {
+    const { generateDrugOrderPDF } = getPdfModule()
+    const dayMap: Record<string, string> = { day1: '8AM' }
+
+    await generateDrugOrderPDF({
+      patient,
+      drugOrders: [
+        {
+          drugName: 'INJ PAN',
+          frequency: 'BD',
+          route: 'IV',
+          startDate: '2026-03-23',
+          days: dayMap,
+        },
+      ],
+    })
+
+    expect(capturedHtml).toContain('<colgroup>')
+    expect(capturedHtml).toMatch(/width:45%/)
+    expect(capturedHtml).toMatch(/width:7%/)
+  })
 })
