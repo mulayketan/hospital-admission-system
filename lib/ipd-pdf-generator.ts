@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { PDFDocument } from 'pdf-lib'
 import { getBrowser } from './browser'
 import {
   DRUG_ORDER_DATE_COLUMNS_PER_PAGE,
@@ -211,22 +212,32 @@ const wardLabel = (code: string): string => WARD_DISPLAY_NAMES[code] ?? code
 // Shared CSS constants
 // ---------------------------------------------------------------------------
 
+const NOTO_DEVANAGARI_TTF = 'NotoSansDevanagari-Regular.ttf'
+
+/** Reject mistyped "fonts" (e.g. saved HTML) so we do not inline garbage as @font-face. */
+const looksLikeTtf = (buf: Buffer): boolean => {
+  if (buf.length < 4) return false
+  if (buf[0] === 0x3c) return false
+  if (buf[0] === 0x00 && buf[1] === 0x01 && buf[2] === 0x00 && buf[3] === 0x00) return true
+  const sig = buf.subarray(0, 4).toString('binary')
+  return sig === 'OTTO' || sig === 'true' || sig === 'ttcf'
+}
+
 /**
- * Resolve the project root that contains `public/` (fonts, images).
- * Vercel + Next bundle server code into `.next/server/chunks/…` where
- * `process.cwd()` is not always a directory with `public/`; walk upward from
- * this file and from cwd until we see `public/fonts/`.
+ * Resolve a directory that contains the bundled IPD font (see `lib/ipd-pdf-assets/`)
+ * and/or `public/fonts/`. Walk from cwd and from this module so it works in Vercel
+ * stand-alone and nested `.next/server` bundles.
  */
 const findProjectRootWithPublic = (): string | null => {
-  const hasPublicFonts = (root: string) =>
-    existsSync(join(root, 'public', 'fonts', 'NotoSansDevanagari-Regular.ttf')) ||
-    existsSync(join(root, 'public', 'fonts', 'NotoSansDevanagari-Regular.woff2'))
+  const hasFont = (root: string) =>
+    existsSync(join(root, 'lib', 'ipd-pdf-assets', NOTO_DEVANAGARI_TTF)) ||
+    existsSync(join(root, 'public', 'fonts', NOTO_DEVANAGARI_TTF))
 
   const tryWalk = (start: string | null | undefined, fromFile: boolean): string | null => {
     if (!start) return null
     let d = fromFile ? dirname(start) : start
     for (let i = 0; i < 12; i++) {
-      if (hasPublicFonts(d)) return d
+      if (hasFont(d)) return d
       const parent = join(d, '..')
       if (parent === d) break
       d = parent
@@ -239,36 +250,37 @@ const findProjectRootWithPublic = (): string | null => {
 
 /**
  * Load Noto Devanagari from disk (base64) so PDF render never depends on the network.
- * Tries project root (see findProjectRootWithPublic) and .ttf then .woff2.
+ * Tries `lib/ipd-pdf-assets` (traced for serverless) then `public/fonts/`.
  */
 const loadDevanagariFontFace = (): string => {
-  const files: { name: string; format: 'truetype' | 'woff2' }[] = [
-    { name: 'NotoSansDevanagari-Regular.ttf', format: 'truetype' },
-    { name: 'NotoSansDevanagari-Regular.woff2', format: 'woff2' },
-  ]
-  const extraRoots = [process.cwd(), join(process.cwd(), '..'), join(process.cwd(), '../..')]
-  const fromWalk = findProjectRootWithPublic()
-  const roots = (fromWalk ? [fromWalk, ...extraRoots] : extraRoots).filter(
-    (r, i, a) => a.indexOf(r) === i
-  )
-  for (const root of roots) {
-    for (const { name, format } of files) {
-      const full = join(root, 'public', 'fonts', name)
-      if (!existsSync(full)) continue
-      try {
-        const buf = readFileSync(full)
-        const mime = format === 'woff2' ? 'font/woff2' : 'font/ttf'
-        const dataUrl = `data:${mime};base64,${buf.toString('base64')}`
-        return `@font-face {
+  const ttf = NOTO_DEVANAGARI_TTF
+  const toFace = (buf: Buffer): string => {
+    const dataUrl = `data:font/ttf;base64,${buf.toString('base64')}`
+    return `@font-face {
       font-family: 'Noto Sans Devanagari';
-      src: url('${dataUrl}') format('${format}');
+      src: url('${dataUrl}') format('truetype');
       font-weight: 400 700;
       font-style: normal;
       font-display: block;
     }`
-      } catch {
-        /* try next */
-      }
+  }
+  const tryFile = (full: string): string | null => {
+    if (!existsSync(full)) return null
+    try {
+      const buf = readFileSync(full)
+      if (!looksLikeTtf(buf)) return null
+      return toFace(buf)
+    } catch {
+      return null
+    }
+  }
+  const extraRoots = [process.cwd(), join(process.cwd(), '..'), join(process.cwd(), '../..')]
+  const fromWalk = findProjectRootWithPublic()
+  const priorityRel = [join('lib', 'ipd-pdf-assets', ttf), join('public', 'fonts', ttf)]
+  for (const rel of priorityRel) {
+    for (const root of (fromWalk ? [fromWalk, ...extraRoots] : extraRoots)) {
+      const css = tryFile(join(root, rel))
+      if (css) return css
     }
   }
   return ''
@@ -1060,8 +1072,20 @@ export const generateDrugOrderPDF = async ({
 
 // ---------------------------------------------------------------------------
 // 5. Combined IPD PDF — 4 forms concatenated (§8.5)
-//    All sections are portrait. CSS named pages kept for extensibility.
+//    Merge the four standalone PDFs so the drug-order section keeps A4 landscape
+//    and the same embedded font path as per-form exports (Vercel serverless).
 // ---------------------------------------------------------------------------
+
+const mergeIpdPdfBuffers = async (buffers: Buffer[]): Promise<Buffer> => {
+  const merged = await PDFDocument.create()
+  for (const buf of buffers) {
+    if (!buf.length) continue
+    const src = await PDFDocument.load(buf)
+    const pages = await merged.copyPages(src, src.getPageIndices())
+    pages.forEach(page => merged.addPage(page))
+  }
+  return Buffer.from(await merged.save())
+}
 
 export const generateCombinedIPDPDF = async ({
   patient,
@@ -1078,402 +1102,14 @@ export const generateCombinedIPDPDF = async ({
   vitalSigns: VitalSign[]
   drugOrders: DrugOrder[]
 }): Promise<Buffer> => {
-  // Build HTML for each section inline (no separate Puppeteer calls needed)
-  // Each section is wrapped in a div with a named CSS page for orientation.
-
-  // Reuse the per-form body builders by copy-constructing the HTML strings
-  // (same logic as individual generators, no Puppeteer overhead per form)
-
-  const admissionEntry = progressEntries.find(e => e.isAdmissionNote)
-  const diagnosis = admissionEntry?.diagnosis || ''
-
-  // --- Progress Report section ---
-  const prRows = progressEntries
-    .map(
-      e => `
-      <tr>
-        <td style="width:15%;text-align:center">${formatIPDDate(e.dateTime)}</td>
-        <td style="width:45%" class="cell-wrap">${esc(e.doctorNotes)}</td>
-        <td style="width:40%" class="cell-wrap">${esc(e.treatment || '')}</td>
-      </tr>`
-    )
-    .join('')
-
-  const adviceBlock =
-    adviceEntries.length > 0
-      ? `
-      <div style="margin:10px 0; border:2px solid #000;">
-        <div style="background:#000;color:#fff;padding:4px 8px;font-weight:bold;font-size:12px;">INVESTIGATIONS / ADVICE</div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width:16%">Date &amp; Time</th>
-              <th style="width:18%">Category</th>
-              <th style="width:28%">Investigation</th>
-              <th style="width:38%">Report Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${adviceEntries
-              .map(
-                a => `
-              <tr>
-                <td style="text-align:center">${formatIPDDate(a.dateTime)}</td>
-                <td>${esc(a.category)}</td>
-                <td>${esc(a.investigationName)}</td>
-                <td class="cell-wrap">${esc(a.reportNotes || '—')}</td>
-              </tr>`
-              )
-              .join('')}
-          </tbody>
-        </table>
-      </div>`
-      : ''
-
-  const sigBlock = (label: string, name: string | null) => `
-    <div class="sig-block">
-      <div class="sig-line"></div>
-      <div style="font-weight:bold;">${esc(name || '')}</div>
-      <div>${label}</div>
-    </div>`
-
-  const prSection = `
-    <div class="container" style="page:portrait-page;">
-      <div class="header">
-        <span class="badge">PROGRESS REPORT</span>
-        <div style="text-align:right;">
-        ${ipdPortraitHospitalBlock()}
-        ${uhidBoxHtml(patient.uhidNo)}
-        </div>
-      </div>
-      <div class="patient-strip">
-        <div class="ps-row">
-          <div class="ps-item"><span class="ps-label">Patient Name:</span>&nbsp;<span class="ps-value">${esc(fullName(patient))}</span></div>
-          <div class="ps-item"><span class="ps-label">I.P.D No.:</span>&nbsp;<span class="ps-value">${esc(patient.ipdNo || '—')}</span></div>
-          <div class="ps-item"><span class="ps-label">Age:</span>&nbsp;<span class="ps-value">${patient.age}</span></div>
-          <div class="ps-item"><span class="ps-label">SEX:</span>&nbsp;<span class="ps-value">${patient.sex}</span></div>
-          <div class="ps-item"><span class="ps-label">BED No.:</span>&nbsp;<span class="ps-value">${esc(patient.bedNo || '—')}</span></div>
-        </div>
-      </div>
-      <div style="background:#f2f2f2;border:1px solid #000;padding:6px;margin:5px 0;">
-        <div style="font-weight:bold;margin-bottom:4px;">DIAGNOSIS</div>
-        <div class="cell-wrap" style="min-height:28px;">${esc(diagnosis)}</div>
-      </div>
-      <table><thead><tr><th style="width:15%">Date &amp; Time</th><th style="width:45%">Doctor's Notes</th><th style="width:40%">Treatment</th></tr></thead>
-      <tbody>${prRows || '<tr><td colspan="3" style="text-align:center;color:#888">No entries</td></tr>'}</tbody></table>
-      ${adviceBlock}
-      <div class="footer">
-        <div class="footer-note">Every Entry to be Named, Signed, Dated &amp; Timed</div>
-        <div class="footer-sigs" style="margin-top:10px;">
-          <div></div>${sigBlock('Treating Doctor', patient.treatingDoctor)}
-        </div>
-      </div>
-    </div>`
-
-  // --- Nursing Notes section ---
-  const nnRows = nursingNotes
-    .map(e => {
-      const bg = e.isHandover ? 'background:#d0d0d0;' : ''
-      const prefix = e.isHandover ? '<strong>⇄ HANDOVER</strong><br>' : ''
-      return `<tr style="${bg}"><td style="width:15%;text-align:center">${formatIPDDate(e.dateTime)}</td><td style="width:45%" class="cell-wrap">${prefix}${esc(e.notes)}</td><td style="width:40%" class="cell-wrap">${esc(e.treatment || '')}</td></tr>`
-    })
-    .join('')
-
-  const nnSection = `
-    <div class="container" style="page:portrait-page;">
-      <div class="header">
-        <span class="badge">NURSING NOTES</span>
-        <div style="text-align:right;">
-        ${ipdPortraitHospitalBlock()}
-        ${uhidBoxHtml(patient.uhidNo)}
-        </div>
-      </div>
-      <div class="patient-strip">
-        <div style="display:flex;gap:20px;margin-bottom:4px;">
-          <div><span class="ps-label">Patient Name:</span>&nbsp;<span class="ps-value" style="min-width:140px;">${esc(fullName(patient))}</span></div>
-          <div><span class="ps-label">Age:</span>&nbsp;<span class="ps-value">${patient.age}</span></div>
-        </div>
-        <div style="display:flex;gap:20px;">
-          <div><span class="ps-label">IPD No.:</span>&nbsp;<span class="ps-value" style="min-width:100px;">${esc(patient.ipdNo || '—')}</span></div>
-          <div><span class="ps-label">Sex M/F:</span>&nbsp;<span class="ps-value">${patient.sex}</span></div>
-        </div>
-      </div>
-      <table><thead><tr><th style="width:15%">Date &amp; Time</th><th style="width:45%">Notes</th><th style="width:40%">Treatment Given</th></tr></thead>
-      <tbody>${nnRows || '<tr><td colspan="3" style="text-align:center;color:#888">No entries</td></tr>'}</tbody></table>
-      <div class="footer">
-        <div class="footer-note">Every Entry to be Named, Signed, Dated &amp; Timed</div>
-        <div class="footer-sigs" style="margin-top:10px;">
-          <div></div>${sigBlock('Treating Doctor', patient.treatingDoctor)}
-        </div>
-      </div>
-    </div>`
-
-  // --- Nursing Chart section ---
-  const ncRows = vitalSigns
-    .map(
-      v => `<tr>
-        <td style="text-align:center">${formatIPDDate(v.dateTime)}</td>
-        <td style="text-align:center">${esc(v.temp || '—')}</td>
-        <td style="text-align:center">${esc(v.pulse || '—')}</td>
-        <td style="text-align:center">${esc(v.bp || '—')}</td>
-        <td style="text-align:center">${esc(v.spo2 || '—')}</td>
-        <td style="text-align:center">${esc(v.bsl || '—')}</td>
-        <td>${esc(v.ivFluids || '—')}</td>
-        <td style="text-align:center">${esc(v.staffName)}</td>
-      </tr>`
-    )
-    .join('')
-
-  const ncSection = `
-    <div class="container" style="page:portrait-page;">
-      <div class="header">
-        <span class="badge">NURSING CHART</span>
-        <div style="text-align:right;">
-        ${ipdPortraitHospitalBlock()}
-        ${uhidBoxHtml(patient.uhidNo)}
-        </div>
-      </div>
-      <div class="patient-strip">
-        <div class="ps-row">
-          <div class="ps-item"><span class="ps-label">Patient Name:</span>&nbsp;<span class="ps-value">${esc(fullName(patient))}</span></div>
-          <div class="ps-item"><span class="ps-label">Age:</span>&nbsp;<span class="ps-value">${patient.age}</span></div>
-          <div class="ps-item"><span class="ps-label">IPD No.:</span>&nbsp;<span class="ps-value">${esc(patient.ipdNo || '—')}</span></div>
-          <div class="ps-item"><span class="ps-label">Sex M/F:</span>&nbsp;<span class="ps-value">${patient.sex}</span></div>
-        </div>
-      </div>
-      <table style="table-layout:fixed;margin-top:6px;">
-        <colgroup><col style="width:13%"><col style="width:8%"><col style="width:8%"><col style="width:9%"><col style="width:8%"><col style="width:7%"><col style="width:28%"><col style="width:19%"></colgroup>
-        <thead><tr><th>DATE / TIME</th><th>TEMP</th><th>P/MIN</th><th>B.P</th><th>SPO2</th><th>BSL</th><th>IV FLUIDS</th><th>NAME OF STAFF</th></tr></thead>
-        <tbody>${ncRows || '<tr><td colspan="8" style="text-align:center;color:#888">No entries</td></tr>'}</tbody>
-      </table>
-      <div class="footer"><div class="footer-sigs" style="margin-top:15px;"><div></div>${sigBlock('Treating Doctor', patient.treatingDoctor)}</div></div>
-    </div>`
-
-  // --- Drug Orders section ---
-  const doSection = await buildDrugOrderSection(patient, drugOrders)
-
-  // Combine all sections with page-break separators
-  const combinedHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>IPD Report — ${esc(fullName(patient))}</title>
-  <style>
-    ${FONT_IMPORT}
-    @page portrait-page  { size: A4 portrait;  margin: 8mm; }
-    @page landscape-page { size: A4 landscape; margin: 8mm; }
-    ${BASE_CSS}
-    .new-page { break-before: page; }
-  </style>
-</head>
-<body>
-  ${prSection}
-  <div class="new-page">${nnSection}</div>
-  <div class="new-page">${ncSection}</div>
-  <div class="new-page">${doSection}</div>
-</body>
-</html>`
-
-  const browser = await getBrowser()
-  const page = await browser.newPage()
-  try {
-    await page.setViewport({ width: 1600, height: 1100 })
-    await page.setContent(combinedHtml, { waitUntil: 'load', timeout: 30_000 })
-    await waitForRender(page)
-    // Do NOT pass `format` or `landscape` here — the combined PDF uses CSS
-    // @page named-pages (portrait-page / landscape-page). `preferCSSPageSize`
-    // is required or headless Chromium often ignores @page (order sheet stays portrait).
-    const pdfBuffer = await page.pdf({
-      printBackground: true,
-      margin: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
-      preferCSSPageSize: true,
-    })
-    return Buffer.from(pdfBuffer)
-  } finally {
-    await page.close()
-  }
+  const progressBuf = await generateProgressReportPDF({
+    patient,
+    progressEntries,
+    adviceEntries,
+  })
+  const nursingBuf = await generateNursingNotesPDF({ patient, nursingEntries: nursingNotes })
+  const chartBuf = await generateNursingChartPDF({ patient, vitalSigns })
+  const drugBuf = await generateDrugOrderPDF({ patient, drugOrders })
+  return mergeIpdPdfBuffers([progressBuf, nursingBuf, chartBuf, drugBuf])
 }
 
-// ---------------------------------------------------------------------------
-// Internal helper — Drug Order HTML section (reused for combined PDF)
-// ---------------------------------------------------------------------------
-
-async function buildDrugOrderSection(
-  patient: IPDPatient,
-  drugOrders: DrugOrder[]
-): Promise<string> {
-  if (drugOrders.length === 0) {
-    return `<div class="order-sheet-print-wrap" style="page:landscape-page;padding:20px;text-align:center;color:#888;">No drug orders.</div>`
-  }
-
-  const globalStart = drugOrders.reduce<Date>((earliest, d) => {
-    const c = parseDateStr(d.startDate)
-    return c < earliest ? c : earliest
-  }, parseDateStr(drugOrders[0].startDate))
-
-  const colDate = (n: number): Date => {
-    const d = new Date(globalStart)
-    d.setDate(d.getDate() + n - 1)
-    return d
-  }
-
-  const cellValue = (drug: DrugOrder, colN: number): string => {
-    const ds = parseDateStr(drug.startDate)
-    const dayOffset = Math.round((colDate(colN).getTime() - ds.getTime()) / 86_400_000)
-    if (dayOffset < 0 || dayOffset > 35) return ''
-    const raw = drug.days[`day${dayOffset + 1}`] || ''
-    const val = sanitizeOrderSheetDayValue(drug, raw)
-    return val ? stackTimesOrderSheet(val) : ''
-  }
-
-  const hasDaysData = (from: number, to: number): boolean =>
-    drugOrders.some(drug =>
-      Array.from({ length: to - from + 1 }, (_, i) => `day${from + i}`).some(
-        key => (drug.days[key] || '').trim() !== ''
-      )
-    )
-
-  const firstDrug = drugOrders[0]
-  const drugAllergy = firstDrug.drugAllergy || ''
-  const ward = firstDrug.ward || patient.ward || '—'
-  const bedNo = firstDrug.bedNo || patient.bedNo || '—'
-  const patientInfoRow = `
-    <div style="display:flex;border:1px solid #000;font-size:14px;line-height:1.25;">
-      <div style="flex:2;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:14px;color:#000;">Patient Name</div>
-        <div style="font-size:15px;font-weight:400;color:#000;line-height:1.2;">${esc(fullName(patient))}</div>
-      </div>
-      <div style="flex:1.5;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:14px;color:#000;">Drug Allergy</div>
-        <div style="font-size:14px;font-weight:400;color:#000;">${esc(drugAllergy)}</div>
-      </div>
-      <div style="flex:0.5;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:14px;color:#000;">Age</div>
-        <div style="font-size:14px;font-weight:400;color:#000;">${patient.age}</div>
-      </div>
-      <div style="flex:0.5;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:14px;color:#000;">Sex M/F</div>
-        <div style="font-size:14px;font-weight:400;color:#000;">${patient.sex}</div>
-      </div>
-      <div style="flex:1;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:14px;color:#000;">Ward</div>
-        <div style="font-size:14px;font-weight:400;color:#000;">${esc(wardLabel(ward))}</div>
-      </div>
-      <div style="flex:1;border-right:1px solid #000;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:14px;color:#000;">Room/Bed No.</div>
-        <div style="font-size:14px;font-weight:400;color:#000;">${esc(bedNo)}</div>
-      </div>
-      <div style="flex:1;padding:2px 4px;">
-        <div style="font-weight:bold;font-size:14px;color:#000;">IPD No.</div>
-        <div style="font-size:14px;font-weight:400;color:#000;">${esc(patient.ipdNo || '—')}</div>
-      </div>
-    </div>`
-
-  const COLS_PER_PAGE = DRUG_ORDER_DATE_COLUMNS_PER_PAGE
-
-  const orderHeaderHtmlCombined = `
-    <div class="header" style="margin-bottom:4px;padding:2px 0;">
-      <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:center;">
-        <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
-        <div>
-          <div class="marathi" style="font-weight:bold;font-size:20px;">झंवर हॉस्पिटल</div>
-          <div style="font-size:18px;font-weight:bold;">Zawar Hospital</div>
-        </div>
-      </div>
-      <span class="badge" style="font-size:18px;">ORDER SHEET</span>
-    </div>`
-
-  const orderSheetSigHtmlCombined = `
-    <div class="footer" style="margin-top:0;padding-top:0;">
-      <div class="footer-sigs">
-        <div></div>
-        <div class="sig-block">
-          <div class="sig-line"></div>
-          <div style="font-weight:bold;">${esc(patient.treatingDoctor || '')}</div>
-          <div>Treating Doctor</div>
-        </div>
-      </div>
-    </div>`
-
-  const buildGrid = (from: number, to: number, isPto: boolean): string => {
-    const numCols = to - from + 1
-    const namePct = DRUG_ORDER_NAME_PCT
-    const freqPct = DRUG_ORDER_FREQ_PCT
-    const routePct = DRUG_ORDER_ROUTE_PCT
-    const startPct = DRUG_ORDER_START_PCT
-    const datePcts = drugOrderDatePcts(namePct, freqPct, routePct, startPct, numCols)
-    const colGroup = drugOrderColGroupHtml(namePct, freqPct, routePct, startPct, datePcts)
-    const headerRow = [
-      `<th style="width:${fmtPct(namePct)}%">Name of Drug</th>`,
-      `<th style="width:${fmtPct(freqPct)}%">Freq.</th>`,
-      `<th style="width:${fmtPct(routePct)}%">Route</th>`,
-      `<th style="width:${fmtPct(startPct)}%;text-align:center">Start</th>`,
-      ...datePcts.map(
-        w =>
-          `<th style="width:${fmtPct(w)}%;text-align:center;font-weight:bold;">Date:</th>`
-      ),
-    ].join('')
-    const rows = drugOrders
-      .flatMap(drug => {
-        const repeatRows = frequencyRowCount(drug.frequency)
-        return Array.from({ length: repeatRows }, (_, rowIdx) => `
-          <tr>
-            <td class="cell-wrap order-drug-name">${rowIdx === 0 ? esc(drug.drugName) : ''}</td>
-            <td style="text-align:center">${rowIdx === 0 ? esc(drug.frequency) : ''}</td>
-            <td style="text-align:center">${rowIdx === 0 ? esc(drug.route) : ''}</td>
-            <td style="text-align:center;white-space:nowrap">${rowIdx === 0 ? formatDrugStartDatePdf(drug.startDate) : ''}</td>
-            ${Array.from({ length: numCols }, (_, i) => {
-              const v = cellValue(drug, from + i)
-              return `<td style="text-align:center;">${v}</td>`
-            }).join('')}
-          </tr>`)
-      })
-      .join('')
-
-    const colSpan = 4 + numCols
-    const ptoThead = isPto
-      ? `<tr><td colspan="${colSpan}" style="border:1px solid #000;padding:2px 6px;font-weight:bold;font-size:10px;">PTO</td></tr>`
-      : ''
-
-    return `<table class="drug-order-sheet" style="width:100%;">
-      ${colGroup}
-      <thead>
-        <tr>
-          <td colspan="${colSpan}" class="order-sheet-banner" style="border:1px solid #000;padding:0;vertical-align:top;">
-            ${orderHeaderHtmlCombined}
-          </td>
-        </tr>
-        ${ptoThead}
-        <tr>
-          <td colspan="${colSpan}" class="order-sheet-patient" style="border:1px solid #000;padding:0;vertical-align:top;">
-            ${patientInfoRow}
-          </td>
-        </tr>
-        <tr>${headerRow}</tr>
-      </thead>
-      <tbody>${rows}</tbody>
-      <tfoot>
-        <tr>
-          <td colspan="${colSpan}" class="order-sheet-sig">${orderSheetSigHtmlCombined}</td>
-        </tr>
-      </tfoot>
-    </table>`
-  }
-
-  const pages: string[] = []
-  for (let start = 1; start <= DRUG_ORDER_PDF_MAX_DAYS; start += COLS_PER_PAGE) {
-    const end = start + COLS_PER_PAGE - 1
-    if (start === 1 || hasDaysData(start, end)) {
-      pages.push(buildGrid(start, end, start > 1))
-    }
-  }
-
-  return pages
-    .map(
-      grid => `
-      <div class="order-sheet-print-wrap" style="page:landscape-page;">
-        ${grid}
-      </div>`
-    )
-    .join('<div class="new-page"></div>')
-}

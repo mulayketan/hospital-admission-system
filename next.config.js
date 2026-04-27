@@ -8,6 +8,7 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/api/patients/[id]/ipd-pdf': [
       './lib/serverless-nss/**/*',
+      './lib/ipd-pdf-assets/**/*',
       './public/fonts/**/*',
       './public/images/zh-logo.svg',
     ],
