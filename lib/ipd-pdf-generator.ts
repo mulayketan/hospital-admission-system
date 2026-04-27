@@ -1,5 +1,5 @@
-import { readFileSync } from 'fs'
-import { join } from 'path'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { getBrowser } from './browser'
 import {
   DRUG_ORDER_DATE_COLUMNS_PER_PAGE,
@@ -116,6 +116,12 @@ const esc = (s: string | null | undefined): string => {
     .replace(/"/g, '&quot;')
 }
 
+/** Bordered UHID line; when empty, leaves a wide box for handwriting. */
+const uhidBoxHtml = (uhid: string | null | undefined): string => {
+  const t = uhid && String(uhid).trim() ? String(uhid).trim() : ''
+  return `<div class="uhid-box">${t ? `UHID: ${esc(t)}` : 'UHID: '}</div>`
+}
+
 /**
  * Format an ISO 8601 IST datetime string for PDF display.
  * Output: "D/M/YY H:MMam/pm"  e.g. "23/3/26 5:30PM"
@@ -204,30 +210,51 @@ const wardLabel = (code: string): string => WARD_DISPLAY_NAMES[code] ?? code
 // Shared CSS constants
 // ---------------------------------------------------------------------------
 
-// Embed local Noto Sans Devanagari font so Puppeteer never needs a network
-// request for Devanagari rendering (Google Fonts can't load in headless env).
-const loadDevanariFontSrc = (): string => {
-  try {
-    const buf = readFileSync(join(process.cwd(), 'public', 'fonts', 'NotoSansDevanagari-Regular.ttf'))
-    return `data:font/truetype;base64,${buf.toString('base64')}`
-  } catch {
-    return ''
-  }
-}
-const DEVANAGARI_FONT_SRC = loadDevanariFontSrc()
-
-const FONT_IMPORT = DEVANAGARI_FONT_SRC
-  ? `@font-face {
+/**
+ * Load Noto Devanagari from disk (base64) so PDF render never depends on the network.
+ * Tries several paths (Vercel standalone, repo root) and .ttf then .woff2.
+ */
+const loadDevanagariFontFace = (): string => {
+  const files: { name: string; format: 'truetype' | 'woff2' }[] = [
+    { name: 'NotoSansDevanagari-Regular.ttf', format: 'truetype' },
+    { name: 'NotoSansDevanagari-Regular.woff2', format: 'woff2' },
+  ]
+  const roots = [process.cwd(), join(process.cwd(), '..'), join(process.cwd(), '../..')]
+  for (const root of roots) {
+    for (const { name, format } of files) {
+      const full = join(root, 'public', 'fonts', name)
+      if (!existsSync(full)) continue
+      try {
+        const buf = readFileSync(full)
+        const mime = format === 'woff2' ? 'font/woff2' : 'font/ttf'
+        const dataUrl = `data:${mime};base64,${buf.toString('base64')}`
+        return `@font-face {
       font-family: 'Noto Sans Devanagari';
-      src: url('${DEVANAGARI_FONT_SRC}') format('truetype');
+      src: url('${dataUrl}') format('${format}');
       font-weight: 400 700;
       font-style: normal;
+      font-display: block;
+    }`
+      } catch {
+        /* try next */
+      }
     }
+  }
+  return ''
+}
+const DEVANAGARI_FONT_FACE = loadDevanagariFontFace()
+
+const FONT_IMPORT = DEVANAGARI_FONT_FACE
+  ? `${DEVANAGARI_FONT_FACE}
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap');`
   : `@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&display=swap');`
 
 const BASE_CSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    max-width: 100%;
+  }
   body {
     font-family: 'Noto Sans', Arial, sans-serif;
     font-size: 13px;
@@ -266,8 +293,12 @@ const BASE_CSS = `
   .logo-img { height: 46px; width: auto; margin-right: 8px; }
   .uhid-box {
     display: inline-block; border: 1px solid #000;
-    padding: 3px 8px; font-weight: bold; font-size: 13px;
+    padding: 4px 10px; font-weight: bold; font-size: 13px;
     margin-top: 4px;
+    min-width: 22rem;
+    min-height: 1.45em;
+    text-align: left;
+    box-sizing: border-box;
   }
   .patient-strip {
     border: 1px solid #000; padding: 5px 8px;
@@ -348,20 +379,26 @@ const BASE_CSS = `
 // ZH Logo — read actual SVG from the public folder at runtime (server-side)
 // ---------------------------------------------------------------------------
 const loadLogoSrc = (): string => {
-  try {
-    const svgContent = readFileSync(join(process.cwd(), 'public', 'images', 'zh-logo.svg'))
-    return `data:image/svg+xml;base64,${svgContent.toString('base64')}`
-  } catch {
-    return ''
+  const rel = join('public', 'images', 'zh-logo.svg')
+  const candidates = [join(process.cwd(), rel), join(process.cwd(), '..', rel), join(process.cwd(), '../..', rel)]
+  for (const p of candidates) {
+    if (!existsSync(p)) continue
+    try {
+      const svgContent = readFileSync(p)
+      return `data:image/svg+xml;base64,${svgContent.toString('base64')}`
+    } catch {
+      /* try next */
+    }
   }
+  return ''
 }
 const ZH_LOGO_SRC = loadLogoSrc()
 
-/** Logo + Marathi/English lines — same pattern as order sheet (portrait: progress, nursing, chart, combined). */
-const ipdPortraitHospitalBlock = (justifyEnd: boolean): string => `
-  <div style="display:flex;align-items:center;gap:6px;${justifyEnd ? 'justify-content:flex-end;' : ''}">
+/** Logo + Marathi/English — right-aligned within the header column (all portrait IPD forms). */
+const ipdPortraitHospitalBlock = (): string => `
+  <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;">
     <img class="logo-img" src="${ZH_LOGO_SRC}" alt="ZH" />
-    <div>
+    <div style="text-align:right;">
       <div class="marathi" style="font-weight:bold;font-size:20px;line-height:1.15;">झंवर हॉस्पिटल</div>
       <div style="font-weight:bold;font-size:18px;line-height:1.15;">Zawar Hospital</div>
     </div>
@@ -393,25 +430,38 @@ ${body}
 
 const waitForRender = async (page: import('puppeteer-core').Page): Promise<void> => {
   if (typeof page.evaluate !== 'function') return
-  await page.evaluate(() =>
-    new Promise<void>(resolve => {
-      // Wait for all images (including base64) to decode
-      const imgs = Array.from(document.querySelectorAll('img'))
-      const imgPromises = imgs.map(img =>
-        img.complete
-          ? Promise.resolve()
-          : new Promise<void>(r => {
-              img.addEventListener('load', () => r())
-              img.addEventListener('error', () => r())
-            })
-      )
-      Promise.all(imgPromises)
-        .then(() => document.fonts.ready)
-        .then(() => setTimeout(resolve, 200))
-        .catch(() => setTimeout(resolve, 500))
-      setTimeout(resolve, 3000)
+  await page.evaluate(() => {
+    return new Promise<void>(resolve => {
+      const cap = setTimeout(() => resolve(), 8000)
+      ;(async () => {
+        try {
+          const imgs = Array.from(document.querySelectorAll('img'))
+          await Promise.all(
+            imgs.map(
+              img =>
+                new Promise<void>(r => {
+                  if (img.complete) {
+                    r()
+                    return
+                  }
+                  img.addEventListener('load', () => r(), { once: true })
+                  img.addEventListener('error', () => r(), { once: true })
+                })
+            )
+          )
+          try {
+            await document.fonts.ready
+          } catch {
+            /* ignore */
+          }
+          await new Promise<void>(r => setTimeout(r, 200))
+        } finally {
+          clearTimeout(cap)
+          resolve()
+        }
+      })()
     })
-  )
+  })
 }
 
 const renderPDF = async (
@@ -424,7 +474,7 @@ const renderPDF = async (
     if (typeof page.setViewport === 'function') {
       await page.setViewport({ width: orientation === 'landscape' ? 1600 : 1200, height: 1100 })
     }
-    await page.setContent(html, { waitUntil: 'domcontentloaded' })
+    await page.setContent(html, { waitUntil: 'load', timeout: 30_000 })
     await waitForRender(page)
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -508,8 +558,8 @@ export const generateProgressReportPDF = async ({
         <span class="badge">PROGRESS REPORT</span>
       </div>
       <div style="text-align:right">
-        ${ipdPortraitHospitalBlock(true)}
-        <div class="uhid-box">UHID: ${esc(patient.uhidNo || '—')}</div>
+        ${ipdPortraitHospitalBlock()}
+        ${uhidBoxHtml(patient.uhidNo)}
       </div>
     </div>
 
@@ -587,15 +637,15 @@ export const generateNursingNotesPDF = async ({
     .join('')
 
   const body = `
-  <div style="text-align:right;margin-bottom:4px;font-size:12px;">
-    <strong>UHID:</strong> ${esc(patient.uhidNo || '—')}
-  </div>
   <div class="container">
     <div class="header">
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="badge">NURSING NOTES</span>
       </div>
-      ${ipdPortraitHospitalBlock(false)}
+      <div style="text-align:right">
+        ${ipdPortraitHospitalBlock()}
+        ${uhidBoxHtml(patient.uhidNo)}
+      </div>
     </div>
 
     <div class="patient-strip">
@@ -671,7 +721,10 @@ export const generateNursingChartPDF = async ({
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="badge">NURSING CHART</span>
       </div>
-      ${ipdPortraitHospitalBlock(false)}
+      <div style="text-align:right">
+        ${ipdPortraitHospitalBlock()}
+        ${uhidBoxHtml(patient.uhidNo)}
+      </div>
     </div>
 
     <div class="patient-strip">
@@ -1050,8 +1103,8 @@ export const generateCombinedIPDPDF = async ({
       <div class="header">
         <span class="badge">PROGRESS REPORT</span>
         <div style="text-align:right;">
-          ${ipdPortraitHospitalBlock(true)}
-          <div class="uhid-box">UHID: ${esc(patient.uhidNo || '—')}</div>
+        ${ipdPortraitHospitalBlock()}
+        ${uhidBoxHtml(patient.uhidNo)}
         </div>
       </div>
       <div class="patient-strip">
@@ -1091,7 +1144,10 @@ export const generateCombinedIPDPDF = async ({
     <div class="container" style="page:portrait-page;">
       <div class="header">
         <span class="badge">NURSING NOTES</span>
-        ${ipdPortraitHospitalBlock(false)}
+        <div style="text-align:right;">
+        ${ipdPortraitHospitalBlock()}
+        ${uhidBoxHtml(patient.uhidNo)}
+        </div>
       </div>
       <div class="patient-strip">
         <div style="display:flex;gap:20px;margin-bottom:4px;">
@@ -1133,7 +1189,10 @@ export const generateCombinedIPDPDF = async ({
     <div class="container" style="page:portrait-page;">
       <div class="header">
         <span class="badge">NURSING CHART</span>
-        ${ipdPortraitHospitalBlock(false)}
+        <div style="text-align:right;">
+        ${ipdPortraitHospitalBlock()}
+        ${uhidBoxHtml(patient.uhidNo)}
+        </div>
       </div>
       <div class="patient-strip">
         <div class="ps-row">
