@@ -6,8 +6,8 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "next dev",
-    "dev:clean": "rm -rf .next && next dev",
+    "dev": "NODE_ENV=development next dev",
+    "dev:clean": "rm -rf .next && NODE_ENV=development next dev",
     "build": "next build",
     "start": "next start",
     "test": "jest",

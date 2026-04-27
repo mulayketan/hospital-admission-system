@@ -1,11 +1,14 @@
 /** @type {import('next').NextConfig} */
-// `output: 'standalone'` is for production (`next build` on Vercel / `next start`). If it
-// is always set, `next dev` can fail with ENOENT for prerender-manifest,
-// fallback-build-manifest, and server/pages/_document.js in App Router–only projects.
-const isDev = process.env.NODE_ENV === 'development'
+// `output: 'standalone'` must NOT apply to `next dev` — but at the moment this file loads,
+// `NODE_ENV` is often still unset, so we cannot rely on `NODE_ENV === 'development'` only.
+// Detect the dev command explicitly (same broken manifests: middleware-manifest, routes-manifest, …)
+const isNextDev =
+  process.env.npm_lifecycle_event === 'dev' ||
+  process.argv[2] === 'dev' ||
+  process.env.NODE_ENV === 'development'
 
 const nextConfig = {
-  ...(!isDev && { output: 'standalone' }),
+  ...(!isNextDev && { output: 'standalone' }),
 
   // Next.js 15.5+: ensure vendored NSS/NSPR .so files traced into PDF routes; also ship
   // public fonts + logo so readFile in ipd-pdf-generator works on Vercel standalone.
