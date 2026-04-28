@@ -87,7 +87,14 @@ export const DrugOrderForm = ({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    if (!res.ok) throw new Error('Failed to save drug order')
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      const msg =
+        Array.isArray(err.issues) && err.issues.length
+          ? err.issues.map((i: { message?: string }) => i.message || '').filter(Boolean).join(' ')
+          : err.error || `Failed to save (${res.status})`
+      throw new Error(msg)
+    }
     onSaved()
   }
 

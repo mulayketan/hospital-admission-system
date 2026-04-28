@@ -53,7 +53,8 @@ export const vitalSignSchema = vitalSignBaseSchema.refine(
 
 export const drugOrderSchema = z.object({
   patientId:           z.string().min(1),
-  ipdNo:               z.string().min(1),
+  // Allow blank when patient has no IPD number assigned yet (sheet still stores '')
+  ipdNo:               z.string(),
   drugName:            z.string().min(1, 'Drug name required'),
   drugAllergy:         z.string().optional(),
   frequency:           z.enum(['BD', 'TD', 'TDS', 'OD', 'STAT', 'SOS', 'QD', 'QID', 'HS', '1-0-1', '2-2-2', 'Other']),
