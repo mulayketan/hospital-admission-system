@@ -89,6 +89,8 @@ npm run test:watch
 npm test -- --coverage
 ```
 
+Full local check (unit + lint + E2E): `npm test && npm run lint && npm run test:e2e`
+
 ### Test Coverage
 - **Component Tests**: Form validation, user interactions, language switching
 - **API Tests**: CRUD operations, authentication, error handling
@@ -100,8 +102,10 @@ npm test -- --coverage
 UI tests live in `tests/e2e/`. They start the Next dev server unless one is already running.
 
 ```bash
-# Install browser once (after npm install)
+# Install browsers once (after npm install). Run each line on its own — do not paste
+# several commands on one line; inline "# ..." can break `playwright install` / cp.
 npx playwright install chromium
+npx playwright install chromium-headless-shell
 
 # Optional: copy E2E env hints (NEXTAUTH_URL for local login, etc.)
 cp .env.e2e.example .env.e2e
@@ -129,6 +133,8 @@ npm run dev
 # Terminal 2
 PLAYWRIGHT_SKIP_WEBSERVER=1 npm run test:e2e:ui
 ```
+
+**If guest tests time out with `net::ERR_ABORTED` or `curl` to `http://127.0.0.1:3000/login` hangs:** your Next dev process is often still listening on the port but no longer answering HTTP (common after many parallel runs). **Stop and restart `npm run dev`.** With `PLAYWRIGHT_SKIP_WEBSERVER=1`, a short preflight runs first and should error with that hint instead of a 60s `page.goto` timeout.
 
 ## 📋 Usage Guide
 
@@ -286,6 +292,11 @@ The system includes predefined ward types with automatic charge calculation:
    - Verify NEXTAUTH_SECRET is set
    - Check NEXTAUTH_URL matches deployment
    - Clear browser cookies
+
+4. **Google Sheets API quota (HTTP 429)**
+   - Logs such as `Quota exceeded` / `Read requests per minute per user` mean the Google Cloud project hit Sheets rate limits (common with heavy dev, many open IPD tabs, or E2E runs).
+   - Wait a minute, ease off parallel requests, or in [Google Cloud Console](https://console.cloud.google.com) open **APIs & Services** → **Google Sheets API** → **Quotas** and request a higher limit if needed.
+   - `lib/google-sheets.ts` retries transient **429** / **503** responses with exponential backoff; sustained traffic can still fail after retries.
 
 ### Performance Optimization
 

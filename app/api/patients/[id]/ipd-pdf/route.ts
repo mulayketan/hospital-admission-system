@@ -41,7 +41,7 @@ export async function GET(
     }
 
     const { id } = await params
-    const { searchParams } = request.nextUrl
+    const { searchParams } = new URL(request.url)
     const formParam = searchParams.get('form')
 
     // Reject ?form=advice explicitly (§5: No ?form=advice)

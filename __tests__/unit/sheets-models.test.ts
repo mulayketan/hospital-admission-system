@@ -5,6 +5,8 @@ jest.mock('@/lib/google-sheets', () => ({
   deleteRow: jest.fn(),
   findRowByValue: jest.fn(),
   generateId: jest.fn(() => 'generated-id'),
+  nowIST: jest.fn(() => '2026-03-30T10:00:00.000Z'),
+  sanitizeSheetValue: (value: string) => value,
   SHEET_NAMES: {
     MEDICINES: 'Medicines',
     INVESTIGATIONS: 'Investigations',
@@ -193,7 +195,7 @@ describe('IPD sheets models', () => {
     expect(appendedRow[46]).toBe('Dr A')
   })
 
-  it('PatientAdviceModel.updateStatus updates only status/reportNotes/updatedAt', async () => {
+  it('PatientAdviceModel.update updates only status/reportNotes/updatedAt', async () => {
     const PatientAdviceModel = getModel(modelExports, 'PatientAdviceModel')
     mockedSheets.readSheet.mockResolvedValue([
       ['id', 'patientId', 'ipdNo', 'dateTime', 'category', 'investigationName', 'notes', 'advisedBy', 'status', 'reportNotes', 'createdAt', 'updatedAt'],
@@ -201,7 +203,7 @@ describe('IPD sheets models', () => {
     ])
     mockedSheets.findRowByValue.mockResolvedValue(2)
 
-    await PatientAdviceModel.updateStatus('a1', {
+    await PatientAdviceModel.update('a1', {
       status: 'Done',
       reportNotes: 'Reviewed',
     })

@@ -6,6 +6,7 @@ jest.mock('@/lib/sheets-models', () => ({
   ProgressReportModel: {
     create: jest.fn(),
     delete: jest.fn(),
+    hasAdmissionNote: jest.fn(),
   },
   NursingChartModel: {
     create: jest.fn(),
@@ -22,6 +23,14 @@ jest.mock('@/lib/sheets-models', () => ({
   DrugOrderModel: {
     findByPatientId: jest.fn(),
   },
+}))
+
+jest.mock('@/lib/ipd-pdf-generator', () => ({
+  generateCombinedIPDPDF: jest.fn(async () => Buffer.from('%PDF-1.4\n')),
+  generateProgressReportPDF: jest.fn(),
+  generateNursingNotesPDF: jest.fn(),
+  generateNursingChartPDF: jest.fn(),
+  generateDrugOrderPDF: jest.fn(),
 }))
 
 import { getServerSession } from 'next-auth'
@@ -42,6 +51,7 @@ describe('IPD API integration scenarios', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockSession.mockResolvedValue({ user: { id: 'u1', role: 'ADMIN', name: 'Admin' } })
+    mockedModels.ProgressReportModel.hasAdmissionNote.mockResolvedValue(false)
   })
 
   it('POST /api/ipd/progress-report returns 201 with valid body', async () => {

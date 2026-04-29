@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { PDFDocument } from 'pdf-lib'
 import { getBrowser } from './browser'
 import {
@@ -245,7 +245,19 @@ const findProjectRootWithPublic = (): string | null => {
     return null
   }
 
-  return tryWalk(process.cwd(), false) || tryWalk(fileURLToPath(import.meta.url), true)
+  const fromPackage = (): string | null => {
+    try {
+      const pkg = join(process.cwd(), 'package.json')
+      if (!existsSync(pkg)) return null
+      const r = createRequire(pkg)
+      const self = r.resolve('./lib/ipd-pdf-generator') as string
+      return tryWalk(self, true)
+    } catch {
+      return null
+    }
+  }
+
+  return tryWalk(process.cwd(), false) || fromPackage()
 }
 
 /**

@@ -40,8 +40,9 @@ test.describe.serial('Admission, patient list, and IPD', () => {
     await expect(page.getByRole('button', { name: /Progress Report/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /Nursing Notes/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /Nursing Chart/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Drug Orders/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Advice/i })).toBeVisible()
+    // Substring "drug orders" appears on the Progress Report CTA "Add / manage drug orders" — use exact tab label.
+    await expect(page.getByRole('button', { name: 'Drug Orders', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Advice', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /Export PDF/i })).toBeVisible()
   })
 

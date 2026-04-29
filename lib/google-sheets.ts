@@ -70,6 +70,40 @@ export const initSheetsClient = () => {
   }
 }
 
+/** 429 / 503 from Sheets — often burst "per minute" quota; short backoff helps. */
+function isSheetsTransientLimitError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const e = error as { code?: number; status?: number; response?: { status?: number } }
+  const status = e.response?.status ?? e.code ?? e.status
+  return status === 429 || status === 503
+}
+
+function sheetsBackoffMs(attempt: number): number {
+  const base = 1200 * 2 ** (attempt - 1)
+  return Math.min(40_000, base + Math.random() * 400)
+}
+
+async function withSheetsQuotaRetries<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  const maxAttempts = 5
+  let lastError: unknown
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn()
+    } catch (e) {
+      lastError = e
+      if (!isSheetsTransientLimitError(e) || attempt === maxAttempts) {
+        throw e
+      }
+      const wait = sheetsBackoffMs(attempt)
+      console.warn(
+        `[google-sheets] ${label}: rate/quota limit (attempt ${attempt}/${maxAttempts}), retry in ${Math.round(wait)}ms`
+      )
+      await new Promise((r) => setTimeout(r, wait))
+    }
+  }
+  throw lastError
+}
+
 // Generic function to read data from a sheet
 export const readSheet = async (sheetName: string, range?: string): Promise<any[][]> => {
   const sheets = initSheetsClient()
@@ -77,18 +111,18 @@ export const readSheet = async (sheetName: string, range?: string): Promise<any[
   try {
     console.debug(`Reading sheet ${sheetName}${range ? ` with range ${range}` : ''}...`)
     const startTime = Date.now()
-    
-    // Add timeout wrapper
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Google Sheets API timeout after 25 seconds')), 25000)
+
+    const response = await withSheetsQuotaRetries(`read ${sheetName}`, async () => {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Google Sheets API timeout after 25 seconds')), 25000)
+      })
+      const apiPromise = sheets.spreadsheets.values.get({
+        spreadsheetId: getSpreadsheetId(),
+        range: range ? `${sheetName}!${range}` : sheetName,
+      })
+      return await Promise.race([apiPromise, timeoutPromise])
     })
-    
-    const apiPromise = sheets.spreadsheets.values.get({
-      spreadsheetId: getSpreadsheetId(),
-      range: range ? `${sheetName}!${range}` : sheetName,
-    })
-    
-    const response = await Promise.race([apiPromise, timeoutPromise])
+
     const duration = Date.now() - startTime
     console.debug(`Sheet ${sheetName} read completed in ${duration}ms`)
     
@@ -120,14 +154,16 @@ export const writeSheet = async (sheetName: string, range: string, values: any[]
   const sheets = initSheetsClient()
   
   try {
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: getSpreadsheetId(),
-      range: `${sheetName}!${range}`,
-      valueInputOption: 'RAW',
-      requestBody: {
-        values,
-      },
-    })
+    await withSheetsQuotaRetries(`update ${sheetName}`, () =>
+      sheets.spreadsheets.values.update({
+        spreadsheetId: getSpreadsheetId(),
+        range: `${sheetName}!${range}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values,
+        },
+      })
+    )
   } catch (error) {
     console.error(`Error writing to sheet ${sheetName}:`, error)
     throw error
@@ -139,14 +175,16 @@ export const appendSheet = async (sheetName: string, values: any[][]): Promise<v
   const sheets = initSheetsClient()
   
   try {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: getSpreadsheetId(),
-      range: sheetName,
-      valueInputOption: 'RAW',
-      requestBody: {
-        values,
-      },
-    })
+    await withSheetsQuotaRetries(`append ${sheetName}`, () =>
+      sheets.spreadsheets.values.append({
+        spreadsheetId: getSpreadsheetId(),
+        range: sheetName,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values,
+        },
+      })
+    )
   } catch (error) {
     console.error(`Error appending to sheet ${sheetName}:`, error)
     throw error
@@ -158,10 +196,12 @@ export const clearSheet = async (sheetName: string, range?: string): Promise<voi
   const sheets = initSheetsClient()
   
   try {
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId: getSpreadsheetId(),
-      range: range ? `${sheetName}!${range}` : sheetName,
-    })
+    await withSheetsQuotaRetries(`clear ${sheetName}`, () =>
+      sheets.spreadsheets.values.clear({
+        spreadsheetId: getSpreadsheetId(),
+        range: range ? `${sheetName}!${range}` : sheetName,
+      })
+    )
   } catch (error) {
     console.error(`Error clearing sheet ${sheetName}:`, error)
     throw error
@@ -193,20 +233,23 @@ export const deleteRow = async (sheetName: string, rowNumber: number): Promise<v
   const sheets = initSheetsClient()
   
   try {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: getSpreadsheetId(),
-      requestBody: {
-        requests: [{
-          deleteDimension: {
-            range: {
-              sheetId: await getSheetId(sheetName),
-              dimension: 'ROWS',
-              startIndex: rowNumber - 1,
-              endIndex: rowNumber
+    await withSheetsQuotaRetries(`batchUpdate deleteRow ${sheetName}`, async () => {
+      const sheetId = await getSheetId(sheetName)
+      return sheets.spreadsheets.batchUpdate({
+        spreadsheetId: getSpreadsheetId(),
+        requestBody: {
+          requests: [{
+            deleteDimension: {
+              range: {
+                sheetId,
+                dimension: 'ROWS',
+                startIndex: rowNumber - 1,
+                endIndex: rowNumber
+              }
             }
-          }
-        }]
-      }
+          }]
+        }
+      })
     })
   } catch (error) {
     console.error(`Error deleting row ${rowNumber} from sheet ${sheetName}:`, error)

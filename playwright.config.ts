@@ -3,8 +3,8 @@ import path from 'node:path'
 import { config as loadEnv } from 'dotenv'
 
 // Optional: .env.local (local dev), then .env.e2e overrides
-loadEnv({ path: path.join(process.cwd(), '.env.local') })
-loadEnv({ path: path.join(process.cwd(), '.env.e2e') })
+loadEnv({ path: path.join(process.cwd(), '.env.local'), quiet: true })
+loadEnv({ path: path.join(process.cwd(), '.env.e2e'), quiet: true })
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
 
@@ -13,6 +13,7 @@ const skipWebServer = !!process.env.PLAYWRIGHT_SKIP_WEBSERVER
 
 export default defineConfig({
   testDir: './tests/e2e',
+  globalSetup: path.join(process.cwd(), 'tests/e2e/global-setup.ts'),
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
