@@ -120,6 +120,16 @@ npx playwright test --project=chromium-guest
 
 **Optional:** Set `E2E_SKIP_PDF=1` to skip the combined IPD PDF download test (heavy Puppeteer).
 
+**If Playwright UI stays on “Loading…”:** the bundled dev server’s logs used to fill piped stdout and block Next. This config uses `stdout: 'ignore'` for `webServer`. You can also start Next yourself and run UI without spawning a second server:
+
+```bash
+# Terminal 1
+npm run dev
+
+# Terminal 2
+PLAYWRIGHT_SKIP_WEBSERVER=1 npm run test:e2e:ui
+```
+
 ## 📋 Usage Guide
 
 ### For Receptionists

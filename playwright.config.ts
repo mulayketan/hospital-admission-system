@@ -8,6 +8,9 @@ loadEnv({ path: path.join(process.cwd(), '.env.e2e') })
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000'
 
+/** Set PLAYWRIGHT_SKIP_WEBSERVER=1 when Next is already running (e.g. second terminal + UI mode). */
+const skipWebServer = !!process.env.PLAYWRIGHT_SKIP_WEBSERVER
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -23,20 +26,25 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-  webServer: {
-    command: 'npm run dev',
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    stdout: 'pipe',
-    stderr: 'pipe',
-    env: {
-      ...process.env,
-      NODE_ENV: 'development',
-      // Login/Credentials callbacks must match the dev server origin during E2E.
-      NEXTAUTH_URL: process.env.PLAYWRIGHT_NEXTAUTH_URL || process.env.NEXTAUTH_URL || baseURL,
-    },
-  },
+  ...(skipWebServer
+    ? {}
+    : {
+        webServer: {
+          command: 'npm run dev',
+          url: baseURL,
+          reuseExistingServer: !process.env.CI,
+          // Next dev logs a lot; `pipe` can fill OS buffers and block the child → "Loading…" forever in UI mode.
+          stdout: 'ignore',
+          stderr: 'ignore',
+          timeout: 180_000,
+          env: {
+            ...process.env,
+            NODE_ENV: 'development',
+            // Login/Credentials callbacks must match the dev server origin during E2E.
+            NEXTAUTH_URL: process.env.PLAYWRIGHT_NEXTAUTH_URL || process.env.NEXTAUTH_URL || baseURL,
+          },
+        },
+      }),
   projects: [
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
