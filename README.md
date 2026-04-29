@@ -95,6 +95,31 @@ npm test -- --coverage
 - **PDF Generation Tests**: Template rendering, data inclusion, language support
 - **Integration Tests**: End-to-end user workflows
 
+### End-to-end (Playwright)
+
+UI tests live in `tests/e2e/`. They start the Next dev server unless one is already running.
+
+```bash
+# Install browser once (after npm install)
+npx playwright install chromium
+
+# Optional: copy E2E env hints (NEXTAUTH_URL for local login, etc.)
+cp .env.e2e.example .env.e2e
+
+# Run all E2E projects (guest + authenticated)
+npm run test:e2e
+
+# Interactive UI mode
+npm run test:e2e:ui
+
+# Only unauthenticated tests
+npx playwright test --project=chromium-guest
+```
+
+**Requirements:** Credentials in `.env.local` (`DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD`) or override with `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD`. For local runs, ensure NextAuth matches the dev origin — use `PLAYWRIGHT_NEXTAUTH_URL=http://localhost:3000` in `.env.e2e` if your `.env.local` points `NEXTAUTH_URL` at production.
+
+**Optional:** Set `E2E_SKIP_PDF=1` to skip the combined IPD PDF download test (heavy Puppeteer).
+
 ## 📋 Usage Guide
 
 ### For Receptionists
